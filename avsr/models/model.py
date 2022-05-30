@@ -21,7 +21,8 @@ class EncoderDecoderModel(nn.Module):
         self.encoder = None
         self.attdecoder = None
         self.ctcdecoder = None
-        self.config = config
+        self.vocab_size = vocab_size
+        self.pad_id = pad_id
         
     def forward(self,
                 video_inputs,
@@ -34,8 +35,8 @@ class EncoderDecoderModel(nn.Module):
 
 
 class HybridModel(EncoderDecoderModel):
-    def __init__(self, *args):
-        super().__init__(*args)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     def forward(self,
                 video_inputs,
@@ -55,8 +56,8 @@ class HybridModel(EncoderDecoderModel):
 
 
 class AttentionModel(EncoderDecoderModel):
-    def __init__(self, *args):
-        super().__init__(*args)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     def forward(self,
                 video_inputs,
@@ -75,8 +76,8 @@ class AttentionModel(EncoderDecoderModel):
 
 
 class CTCModel(EncoderDecoderModel):
-    def __init__(self, *args):
-        super().__init__(*args)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     def forward(self,
                 video_inputs,

@@ -54,6 +54,8 @@ class LinearDecoder(nn.Module):
     def __init__(
         self, 
         decoder_d_model : int, 
+        *args,
+        **kwargs
     ):
         super().__init__()
         self.fc = nn.Linear(decoder_d_model, self.vocab_size)

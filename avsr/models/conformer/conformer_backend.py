@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from encoder import ConformerEncoder
+from avsr.models.conformer.encoder import ConformerEncoder
 
 
 class Conformer_back(nn.Module):
@@ -11,6 +11,7 @@ class Conformer_back(nn.Module):
     '''
     def __init__(
         self,
+        encoder_n_layer : int,
         encoder_d_model : int, 
         encoder_n_head : int, 
         encoder_ff_dim : int,
@@ -18,7 +19,7 @@ class Conformer_back(nn.Module):
     ):
         super().__init__()
         self.conformer = ConformerEncoder(encoder_d_model, encoder_d_model, 
-                                          encoder_n_layers, encoder_n_head, 
+                                          encoder_n_layer, encoder_n_head, 
                                           input_dropout_p=encoder_dropout_p)
         self.layers = nn.Sequential(*self.conformer.layers)
         

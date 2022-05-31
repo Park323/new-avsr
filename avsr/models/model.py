@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class EncoderDecoderModel(nn.Module):
@@ -7,14 +8,6 @@ class EncoderDecoderModel(nn.Module):
         self,
         vocab_size : int,
         pad_id : int,
-        encoder_d_model : int, 
-        encoder_n_head : int, 
-        encoder_ff_dim : int,
-        encoder_dropout_p : float,
-        decoder_d_model : int, 
-        decoder_n_head : int, 
-        decoder_ff_dim : int, 
-        decoder_dropout_p : float,
     ):
         super().__init__()
         self.embedder = None
@@ -48,9 +41,8 @@ class HybridModel(EncoderDecoderModel):
         features = self.encoder(video_inputs, video_input_lengths,
                                 audio_inputs, audio_input_lengths)
         targets = F.one_hot(targets, num_classes = self.vocab_size)
-        targets = self.target_embedding(targets.to(torch.float32))
-        output_a = self.decoder(targets, features, pad_id=self.pad_id)
-        output_a = F.log_softmax(self.attdecoder(output_a), dim=-1)
+        targets = self.embedder(targets.to(torch.float32))
+        output_a = F.log_softmax(self.attdecoder(targets, features, pad_id=self.pad_id), dim=-1)
         output_b = F.log_softmax(self.ctcdecoder(features), dim=-1)
         return (output_a, output_b)
 
@@ -69,9 +61,9 @@ class AttentionModel(EncoderDecoderModel):
         features = self.encoder(video_inputs, video_input_lengths,
                                 audio_inputs, audio_input_lengths)
         targets = F.one_hot(targets, num_classes = self.vocab_size)
-        targets = self.target_embedding(targets.to(torch.float32))
+        targets = self.embedder(targets.to(torch.float32))
         output = self.decoder(targets, features, pad_id=self.pad_id)
-        output = F.log_softmax(self.attdecoder(output_a), dim=-1)
+        output = F.log_softmax(output, dim=-1)
         return output
 
 
@@ -89,6 +81,6 @@ class CTCModel(EncoderDecoderModel):
         features = self.encoder(video_inputs, video_input_lengths,
                                 audio_inputs, audio_input_lengths)
         targets = F.one_hot(targets, num_classes = self.vocab_size)
-        targets = self.target_embedding(targets.to(torch.float32))
+        targets = self.embedder(targets.to(torch.float32))
         output = F.log_softmax(self.ctcdecoder(features), dim=-1)
         return output

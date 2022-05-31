@@ -57,11 +57,9 @@ class Attention_Loss(nn.Module):
         label_smoothing
     ):
         super().__init__()
-        self.config = config
         self.att = nn.CrossEntropyLoss(
             size_average=True, 
             ignore_index=ignore_index,
-            label_smoothing=label_smoothing
         )
         
     def forward(self, outputs, targets, *args, **kwargs):

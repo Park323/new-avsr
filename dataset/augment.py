@@ -8,6 +8,7 @@ import torchaudio
 from torchaudio import functional as F
 from torch import Tensor
 
+torchaudio.set_audio_backend("sox_io")
 
 class SpecAugment(object):
     def __init__(self, freq_mask_para: int = 18, time_mask_num: int = 10, freq_mask_num: int = 2) :

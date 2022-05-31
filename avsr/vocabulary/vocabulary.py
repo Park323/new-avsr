@@ -6,18 +6,18 @@ import pdb
 import torch
 import torch.nn.functional as F
 
-# ¿Ø¥œƒ⁄µÂ «—±€ Ω√¿€ : 44032, ≥° : 55203
+# Ïú†ÎãàÏΩîÎìú ÌïúÍ∏Ä ÏãúÏûë : 44032, ÎÅù : 55203
 BASE_CODE, CHOSUNG, JUNGSUNG = 44032, 588, 28
 END_CODE = 55203
 
-# √ º∫ ∏ÆΩ∫∆Æ. 00 ~ 18
-CHOSUNG_LIST = ['§°', '§¢', '§§', '§ß', '§®', '§©', '§±', '§≤', '§≥', '§µ', '§∂', '§∑', '§∏', '§π', '§∫', '§ª', '§º', '§Ω', '§æ']
+# Ï¥àÏÑ± Î¶¨Ïä§Ìä∏. 00 ~ 18
+CHOSUNG_LIST = ['„Ñ±', '„Ñ≤', '„Ñ¥', '„Ñ∑', '„Ñ∏', '„Ñπ', '„ÖÅ', '„ÖÇ', '„ÖÉ', '„ÖÖ', '„ÖÜ', '„Öá', '„Öà', '„Öâ', '„Öä', '„Öã', '„Öå', '„Öç', '„Öé']
 
-# ¡ﬂº∫ ∏ÆΩ∫∆Æ. 00 ~ 20
-JUNGSUNG_LIST = ['§ø', '§¿', '§¡', '§¬', '§√', '§ƒ', '§≈', '§∆', '§«', '§»', '§…', '§ ', '§À', '§Ã', '§Õ', '§Œ', '§œ', '§–', '§—', '§“', '§”']
+# Ï§ëÏÑ± Î¶¨Ïä§Ìä∏. 00 ~ 20
+JUNGSUNG_LIST = ['„Öè', '„Öê', '„Öë', '„Öí', '„Öì', '„Öî', '„Öï', '„Öñ', '„Öó', '„Öò', '„Öô', '„Öö', '„Öõ', '„Öú', '„Öù', '„Öû', '„Öü', '„Ö†', '„Ö°', '„Ö¢', '„Ö£']
 
-# ¡æº∫ ∏ÆΩ∫∆Æ. 00 ~ 27 + 1(1∞≥ æ¯¿Ω)
-JONGSUNG_LIST = [None, '§°', '§¢', '§£', '§§', '§•', '§¶', '§ß', '§©', '§™', '§´', '§¨', '§≠', '§Æ', '§Ø', '§∞', '§±', '§≤', '§¥', '§µ', '§∂', '§∑', '§∏', '§∫', '§ª', '§º', '§Ω', '§æ']
+# Ï¢ÖÏÑ± Î¶¨Ïä§Ìä∏. 00 ~ 27 + 1(1Í∞ú ÏóÜÏùå)
+JONGSUNG_LIST = [None, '„Ñ±', '„Ñ≤', '„Ñ≥', '„Ñ¥', '„Ñµ', '„Ñ∂', '„Ñ∑', '„Ñπ', '„Ñ∫', '„Ñª', '„Ñº', '„ÑΩ', '„Ñæ', '„Ñø', '„ÖÄ', '„ÖÅ', '„ÖÇ', '„ÖÑ', '„ÖÖ', '„ÖÜ', '„Öá', '„Öà', '„Öä', '„Öã', '„Öå', '„Öç', '„Öé']
 
 
 def char2ord(x):
@@ -38,15 +38,15 @@ def char2grp(test_keyword):
 
     result = list()
     for keyword in split_keyword_list:
-        # «—±€ ø©∫Œ check »ƒ ∫–∏Æ
-        if re.match('.*[∞°-∆R]+.*', keyword) is not None: # '.*[§°-§æ§ø-§”∞°-∆R]+.*'
+        # ÌïúÍ∏Ä Ïó¨Î∂Ä check ÌõÑ Î∂ÑÎ¶¨
+        if re.match('.*[Í∞Ä-Ìû£]+.*', keyword) is not None: # '.*[„Ñ±-„Öé„Öè-„Ö£Í∞Ä-Ìû£]+.*'
             char_code = ord(keyword) - BASE_CODE
             char1 = int(char_code / CHOSUNG)
             result.append(CHOSUNG_LIST[char1])
-            #print('√ º∫ : {}'.format(CHOSUNG_LIST[char1]))
+            #print('Ï¥àÏÑ± : {}'.format(CHOSUNG_LIST[char1]))
             char2 = int((char_code - (CHOSUNG * char1)) / JUNGSUNG)
             result.append(JUNGSUNG_LIST[char2])
-            #print('¡ﬂº∫ : {}'.format(JUNGSUNG_LIST[char2]))
+            #print('Ï§ëÏÑ± : {}'.format(JUNGSUNG_LIST[char2]))
             char3 = int((char_code - (CHOSUNG * char1) - (JUNGSUNG * char2)))
             if char3==0:
                 # result.append('<unk>') # att_0
@@ -54,7 +54,7 @@ def char2grp(test_keyword):
                 # att_2
             else:
                 result.append(f'#{JONGSUNG_LIST[char3]}')
-            #print('¡æº∫ : {}'.format(JONGSUNG_LIST[char3]))
+            #print('Ï¢ÖÏÑ± : {}'.format(JONGSUNG_LIST[char3]))
         else:
             result.append(keyword)
     # result
@@ -72,7 +72,7 @@ def grp2char(JASOlist):
     id2KR[3] = '<unk>'
     id2KR[4] = ' '
     id2KR[5] = '<emp>' # att_1, ctc_2
-    # 6 ~ ... => ∞° ~ .. ∆R
+    # 6 ~ ... => Í∞Ä ~ .. Ìû£
     KR2id = {key:value for value, key in id2KR.items()}
     
     def reset_count():
@@ -90,7 +90,7 @@ def grp2char(JASOlist):
             result.append(id2KR[chr_id])
             chr_count, chr_id = reset_count()
             
-        if re.match('.*[§°-§æ§ø-§”∞°-∆R]+.*', JS) is None:
+        if re.match('.*[„Ñ±-„Öé„Öè-„Ö£Í∞Ä-Ìû£]+.*', JS) is None:
             result.append(JS)
             continue
                         
@@ -127,17 +127,14 @@ class Vocabulary(object):
 
 
 class KsponSpeechVocabulary(Vocabulary):
-    def __init__(self, vocab_path, encoding='utf-8'):
+    def __init__(self, encoding='utf-8'):
         super(KsponSpeechVocabulary, self).__init__()
         
-        self.vocab_dict, self.id_dict = self.load_vocab(vocab_path, encoding=encoding)
+        self.vocab_dict, self.id_dict = self.load_vocab(encoding=encoding)
         self.sos_id = int(self.vocab_dict['<sos>'])
         self.eos_id = int(self.vocab_dict['<eos>'])
         self.pad_id = int(self.vocab_dict['<pad>'])
         self.unk_id = int(self.vocab_dict['<unk>'])
-        self.labels = self.vocab_dict.keys()
-
-        self.vocab_path = vocab_path
       
 
     def __len__(self):
@@ -184,7 +181,7 @@ class KsponSpeechVocabulary(Vocabulary):
             sentences.append(sentence)
         return sentences
 
-    def load_vocab(self, label_path, encoding='utf-8'):
+    def load_vocab(self, encoding='utf-8'):
         """
         Provides char2id, id2char
         Args:
@@ -198,7 +195,7 @@ class KsponSpeechVocabulary(Vocabulary):
         id2unit = dict()
         
         try:
-            with open(label_path, 'r', encoding=encoding) as f:
+            with open("avsr/vocabulary/kor_characters.csv", 'r', encoding=encoding) as f:
                 labels = csv.reader(f, delimiter=',')
                 next(labels)
                 

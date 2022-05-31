@@ -1,9 +1,9 @@
 import Levenshtein as Lev
-from wer_utils import Code, EditDistance, Token
+from avsr.wer_utils import Code, EditDistance, Token
 import pdb
 import os
 
-from dataloader.vocabulary import grp2char
+from avsr.vocabulary.vocabulary import grp2char
 
 class Metric:
     def __init__(self, vocab, log_path):
@@ -30,7 +30,7 @@ class ErrorRate(object):
         Do not use this class directly, use one of the sub classes.
     """
 
-    def __init__(self, vocab, log_path = None : str) :
+    def __init__(self, vocab, log_path : str = None) :
         self.total_dist = 0.0
         self.total_length = 0.0
         self.vocab = vocab
@@ -100,7 +100,7 @@ class ErrorRate(object):
 
 class CharacterErrorRate(ErrorRate):
     
-    def __init__(self, vocab, log_path = None : str):
+    def __init__(self, vocab, log_path:str = None):
         super(CharacterErrorRate, self).__init__(vocab, log_path)
 
     def metric(self, s1: str, s2: str):

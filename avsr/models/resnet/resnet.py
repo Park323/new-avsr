@@ -67,19 +67,23 @@ class Resnet1D_front(nn.Module):
     input :  (BxCxL)
     output : (BxDxL`) L`:= length of audio sequence with 30 Hz
     '''
-    def __init__(self, config):
+    def __init__(
+        self,
+        n_channels : int = 2,
+        out_dim : int = 512,
+    ):
         super().__init__()
         self.conv1 = nn.Sequential(
-            nn.Conv1d(config.audio.n_channels, config.encoder.audio.channel_0, 
-                      kernel_size=config.encoder.audio.kernel_size, stride=config.encoder.audio.stride, 
-                      padding=config.encoder.audio.kernel_size//2), # 80 : 5ms
+            nn.Conv1d(n_channels, 64, 
+                      kernel_size=79, stride=3, 
+                      padding=39), # 80 : 5ms
             nn.BatchNorm1d(64),
             nn.ReLU(),
         )
-        self.conv2 = get_residual_layer(2, config.encoder.audio.channel_0, config.encoder.audio.channel_0, 3, identity=True)
-        self.conv3 = get_residual_layer(2, config.encoder.audio.channel_0, config.encoder.audio.channel_1, 3)
-        self.conv4 = get_residual_layer(2, config.encoder.audio.channel_1, config.encoder.audio.channel_2, 3)
-        self.conv5 = get_residual_layer(2, config.encoder.audio.channel_2, config.encoder.d_model, 3)
+        self.conv2 = get_residual_layer(2, 64, 64, 3, identity=True)
+        self.conv3 = get_residual_layer(2, 64, 128, 3)
+        self.conv4 = get_residual_layer(2, 128, 256, 3)
+        self.conv5 = get_residual_layer(2, 256, out_dim, 3)
         self.avg_pool = nn.AvgPool1d(21, 20, padding=10) # -> 30fps
         
     def forward(self, inputs):
@@ -97,10 +101,14 @@ class Resnet2D_front(nn.Module):
     input :  (BxCxLxHxW)
     output : (BxLxD)
     '''
-    def __init__(self, config):
+    def __init__(
+        self,
+        n_channels : int = 3,
+        out_dim : int = 512,
+    ):
         super().__init__()
         self.conv1 = nn.Sequential(
-            nn.Conv3d(config.video.n_channels, 64, kernel_size=(5,7,7), stride=(1,2,2), padding=(2,0,0)),
+            nn.Conv3d(n_channels, 64, kernel_size=(5,7,7), stride=(1,2,2), padding=(2,0,0)),
             nn.BatchNorm3d(64),
             nn.ReLU(),
             nn.MaxPool3d((1,3,3),(1,2,2))
@@ -108,7 +116,7 @@ class Resnet2D_front(nn.Module):
         self.conv2 = get_residual_layer(2, 64, 64, 3, dim=2, identity=True)
         self.conv3 = get_residual_layer(2, 64, 128, 3, dim=2)
         self.conv4 = get_residual_layer(2, 128, 256, 3, dim=2)
-        self.conv5 = get_residual_layer(2, 256, config.encoder.d_model, 3, dim=2)
+        self.conv5 = get_residual_layer(2, 256, out_dim, 3, dim=2)
         self.avg_pool = nn.AdaptiveAvgPool2d((1,1))
         
     def forward(self, inputs):

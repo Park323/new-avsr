@@ -16,8 +16,8 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
-from model.conformer.activation import Swish
-from model.conformer.modules import Linear
+from avsr.models.conformer.activation import Swish
+from avsr.models.conformer.modules import Linear
 
 
 class FeedForwardModule(nn.Module):

@@ -19,8 +19,8 @@ import torch.nn.functional as F
 from torch import Tensor
 from typing import Optional
 
-from model.conformer.embedding import PositionalEncoding
-from model.conformer.modules import Linear
+from avsr.models.conformer.embedding import PositionalEncoding
+from avsr.models.conformer.modules import Linear
 
 
 class RelativeMultiHeadAttention(nn.Module):

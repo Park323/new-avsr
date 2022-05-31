@@ -4,6 +4,9 @@ import numpy as np
 from torch import Tensor, FloatTensor
 import torchaudio
 
+torchaudio.set_audio_backend("sox_io")
+
+
 class Spectrogram(object):
     """
     Create a spectrogram from a audio signal.
@@ -155,14 +158,14 @@ class MFCC(object):
 
 
 class FilterBank(object):
-    """
-    Create a fbank from a raw audio signal. This matches the input/output of Kaldi¡¯s compute-fbank-feats
+    '''
+    Create a fbank from a raw audio signal. This matches the input/output of Kaldiâ€™s compute-fbank-feats
     Args:
         sample_rate (int): Sample rate of audio signal. (Default: 16000)
         n_mels (int):  Number of mfc coefficients to retain. (Default: 80)
         frame_length (int): frame length for spectrogram (ms) (Default : 20)
         frame_shift (int): Length of hop between STFT windows. (ms) (Default: 10)
-    """
+    '''
     def __init__(
             self,
             sample_rate: int = 16000,

@@ -1,8 +1,8 @@
 from torch.optim import Adam
 
-from loss import *
-from metric import Metric
-from scheduler.noam import NoamLR
+from avsr.loss import *
+from avsr.metric import Metric
+from avsr.scheduler.noam import NoamLR
 
 
 def get_criterion(

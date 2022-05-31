@@ -10,6 +10,8 @@ class TransformerDecoder(nn.Module):
     '''
     def __init__(
         self,
+        vocab_size : int,
+        decoder_n_layer : int,
         decoder_d_model : int, 
         decoder_n_head : int, 
         decoder_ff_dim : int, 
@@ -18,8 +20,8 @@ class TransformerDecoder(nn.Module):
         super().__init__()
         decoder = nn.TransformerDecoderLayer(decoder_d_model, decoder_n_head, 
                                              decoder_ff_dim, decoder_dropout_p)
-        self.decoder = nn.TransformerDecoder(decoder, decoder_n_layers)
-        self.fc = nn.Linear(decoder_d_model, self.vocab_size)
+        self.decoder = nn.TransformerDecoder(decoder, decoder_n_layer)
+        self.fc = nn.Linear(decoder_d_model, vocab_size)
         
     def forward(self, labels, inputs, train=True, pad_id=None, **kwargs):
         label_mask = self.generate_square_subsequent_mask(labels.shape[1]).to(inputs.device)
@@ -53,12 +55,13 @@ class LinearDecoder(nn.Module):
     '''
     def __init__(
         self, 
+        vocab_size : int,
         decoder_d_model : int, 
         *args,
         **kwargs
     ):
         super().__init__()
-        self.fc = nn.Linear(decoder_d_model, self.vocab_size)
+        self.fc = nn.Linear(decoder_d_model, vocab_size)
         
     def forward(self, inputs, train=True, pad_id=None, **kwargs):
         outputs = F.log_softmax(self.fc(inputs), dim=-1)

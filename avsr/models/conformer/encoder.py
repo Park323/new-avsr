@@ -17,13 +17,13 @@ import torch.nn as nn
 from torch import Tensor
 from typing import Tuple
 
-from model.conformer.feed_forward import FeedForwardModule
-from model.conformer.attention import MultiHeadedSelfAttentionModule
-from model.conformer.convolution import (
+from avsr.models.conformer.feed_forward import FeedForwardModule
+from avsr.models.conformer.attention import MultiHeadedSelfAttentionModule
+from avsr.models.conformer.convolution import (
     ConformerConvModule,
     Conv2dSubampling,
 )
-from model.conformer.modules import (
+from avsr.models.conformer.modules import (
     ResidualConnectionModule,
     Linear,
 )

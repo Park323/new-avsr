@@ -1,22 +1,24 @@
 import os
-import math
-import torch
-import random
-
-from omegaconf import DictConfig
-from torch.utils.data import Dataset
-from vocabulary import Vocabulary
-from augment import SpecAugment, BackgroundNoise, get_sample
-from feature import MelSpectrogram,MFCC,Spectrogram,FilterBank
-from torch import Tensor, FloatTensor
-import torchaudio
-import numpy as np
 import pdb
 import csv
 import sys
-from numpy.lib.stride_tricks import as_strided
+import math
+import random
 import warnings
-#import librosa
+
+import torch
+import torchaudio
+torchaudio.set_audio_backend("sox_io")
+from torch import Tensor, FloatTensor
+from torch.utils.data import Dataset
+
+import numpy as np
+from numpy.lib.stride_tricks import as_strided
+
+from avsr.vocabulary.vocabulary import Vocabulary
+from dataset.augment import SpecAugment, BackgroundNoise, get_sample
+from dataset.feature import MelSpectrogram,MFCC,Spectrogram,FilterBank
+
 
 def load_dataset(transcripts_path):
     """
@@ -43,39 +45,58 @@ def load_dataset(transcripts_path):
 
     return video_paths, audio_paths, korean_transcripts, transcripts
 
-def prepare_dataset(config, transcripts_path: str, vocab: Vocabulary, Train=True):
+
+def prepare_dataset(
+    transcripts_path: str,
+    vocab: Vocabulary,
+    use_video: bool = True,
+    raw_video: bool = True,
+    audio_transform_method = 'fbank',
+    audio_sample_rate = None,
+    audio_n_mels = None,
+    audio_frame_length = None,
+    audio_frame_shift = None,
+    audio_normalize = False,
+    spec_augment: bool = False,
+    freq_mask_para: int = None,
+    freq_mask_num: int = None,
+    time_mask_num: int = None,
+    noise_augment: bool = False,
+    noise_path: str = None,
+    Train=True,
+):
 
     train_or_test = 'train' if Train else 'test'
     print(f"prepare {train_or_test} dataset start !!")
 
     tr_video_paths, tr_audio_paths, tr_korean_transcripts, tr_transcripts = load_dataset(transcripts_path)
 
-    if Train == True:
-        trainset = AV_Dataset(
-                video_paths=tr_video_paths,
-                audio_paths=tr_audio_paths,
-                korean_transcripts=tr_korean_transcripts,
-                transcripts=tr_transcripts,
-                sos_id=vocab.sos_id, 
-                eos_id=vocab.eos_id,
-                config=config,
-                noise_augment=True
-                )
-    elif Train == False:
-        trainset = AV_Dataset(
+    trainset = AV_Dataset(
             video_paths=tr_video_paths,
             audio_paths=tr_audio_paths,
             korean_transcripts=tr_korean_transcripts,
             transcripts=tr_transcripts,
             sos_id=vocab.sos_id, 
             eos_id=vocab.eos_id,
-            config=config,
-            )
+            use_video = use_video,
+            raw_video = raw_video,
+            audio_transform_method = audio_transform_method,
+            audio_sample_rate = audio_sample_rate,
+            audio_n_mels = audio_n_mels,
+            audio_frame_length = audio_frame_length,
+            audio_frame_shift = audio_frame_shift,
+            audio_normalize = audio_normalize,
+            spec_augment = spec_augment,
+            freq_mask_para = freq_mask_para,
+            freq_mask_num = freq_mask_num,
+            time_mask_num = time_mask_num,
+            noise_augment = noise_augment,
+            noise_path = noise_path,
+    )
     
     print(f"prepare {train_or_test} dataset finished.")
 
     return trainset
-
 
 
 class AV_Dataset(Dataset):
@@ -106,23 +127,6 @@ class AV_Dataset(Dataset):
             ):
         super(AV_Dataset, self).__init__()
         
-        self.config = config
-        
-        if audio_transform_method.lower() == 'fbank':
-            self.filterbank = FilterBank(
-                                audio_sample_rate, 
-                                audio_n_mels, 
-                                audio_frame_length, 
-                                audio_frame_shift,
-                              )
-            def filterbank(x):
-                x = self.filterbank(x)
-                x = np.transpose(x, (1,0))
-                return x
-            self.transforms = filterbank
-        elif audio_transform_method.lower() == 'raw':
-            self.transforms = lambda x: np.expand_dims(x,1)
-            
         self.video_paths = list(video_paths)
         self.audio_paths = list(audio_paths)
         self.korean_transcripts = list(korean_transcripts)
@@ -133,7 +137,15 @@ class AV_Dataset(Dataset):
         self.eos_id=eos_id
         
         self.audio_sample_rate = audio_sample_rate
+        self.audio_transform_method = audio_transform_method
         self.normalize = audio_normalize
+        if audio_transform_method.lower() == 'fbank':
+            self.filterbank = FilterBank(
+                                audio_sample_rate, 
+                                audio_n_mels, 
+                                audio_frame_length, 
+                                audio_frame_shift,
+                              )
         
         self.use_video = use_video
         self.raw_video = raw_video
@@ -145,15 +157,17 @@ class AV_Dataset(Dataset):
         self.augment_methods = [self.VANILLA] * len(self.audio_paths)
         #self.augment_methods = np.random.choice([0,1,2,3], len(self.audio_paths), p=[0.6, 0.15, 0.15, 0.1])
         
-        self.spec_augment = SpecAugment(freq_mask_para, 
-                                        time_mask_num, 
-                                        freq_mask_num,)
-        self.noise_augment = BackgroundNoise(noise_path, audio_sample_rate)
+        if spec_augment:
+            self.spec_augment = SpecAugment(freq_mask_para, 
+                                            time_mask_num, 
+                                            freq_mask_num,)
+        if noise_augment:
+            self.noise_augment = BackgroundNoise(noise_path, audio_sample_rate)
 
         self._augment(spec_augment, noise_augment)
 
     def __getitem__(self, index):
-        if self.use_vid:
+        if self.use_video:
             video_feature = self.parse_video(self.video_paths[index])
         else:
             # return dummy video feature
@@ -162,14 +176,21 @@ class AV_Dataset(Dataset):
         transcript = self.parse_transcript(self.transcripts[index])
         korean_transcript = self.parse_korean_transcripts(self.korean_transcripts[index])
         return video_feature, audio_feature, transcript, korean_transcript,
+        
+    def audio_transform(self, audio):
+        if self.audio_transform_method == 'fbank':
+            fbanks = self.filterbank(audio)
+            output = np.transpose(fbank, (1,0))
+        elif self.audio_transform_method == 'raw':
+            output = np.expand_dims(audio,1)
+        return output
     
     def parse_audio(self,audio_path: str, augment_method):
-        # pdb.set_trace()
         signal, _ = get_sample(audio_path,resample=self.audio_sample_rate)
         if augment_method in [self.NOISE_AUGMENT, self.BOTH_AUGMENT]:
             signal = self.noise_augment(signal, is_path=False)
         signal = signal.numpy().reshape(-1,)    
-        feature = self.transforms(signal)
+        feature = self.audio_transform(signal)
         if self.normalize:
             feature -= feature.mean()
             feature /= np.std(feature)
@@ -183,13 +204,12 @@ class AV_Dataset(Dataset):
     
     def parse_video(self, video_path: str):
         video = np.load(video_path)
-        if self.raw_video:
-            video = video.transpose(1,0)
+        video = video.transpose(1,0)
         video = torch.from_numpy(video).float()
-        video -= torch.mean(video)
-        video /= torch.std(video)
-        video_feature = video
-        return video_feature
+        if self.raw_video:
+            video -= torch.mean(video)
+            video /= torch.std(video)
+        return video
 
     def parse_transcript(self, transcript):
         tokens = transcript.split(' ')
@@ -249,6 +269,21 @@ class AV_Dataset(Dataset):
         return len(self.audio_paths)
 
 
+class AVcollator:
+    def __init__(
+        self, 
+        max_len : int = None,
+        use_video : bool = True,
+        raw_video : bool = True,
+    ):
+        self.max_len = max_len
+        self.use_video = use_video
+        self.raw_video = raw_video
+        
+    def __call__(self, batch):
+        return _collate_fn(batch, self.max_len, self.use_video, self.raw_video)
+
+
 def _collate_fn(
     batch, 
     max_target_len : int = None,
@@ -283,7 +318,6 @@ def _collate_fn(
     targets = torch.zeros(batch_size, max_target_size).to(torch.long)
     targets.fill_(0)
     
-    
     for x in range(batch_size):
         sample = batch[x]
         tensor = sample[1]
@@ -293,17 +327,15 @@ def _collate_fn(
         targets[x].narrow(0, 0, len(target)).copy_(torch.LongTensor(target))
     
     seq_lengths = torch.IntTensor(seq_lengths)
-    
-    # B T C  --> B C T
-    seqs = seqs.permute(0,2,1)
-    
+    seqs = seqs.permute(0,2,1) # B T C  --> B C T
     
     if use_video :
-        vid_lengths = [len(s[0]) for s in batch]
-        max_vid_sample = max(batch, key=vid_length_)[0]
-        max_vid_size = max_vid_sample.size(0)
-        
-        if raw:
+        vid_lengths = [vid_length_(s) for s in batch]
+        max_vid_batch = max(batch, key=vid_length_)
+        max_vid_sample = max_vid_batch[0]
+        max_vid_size = vid_length_(max_vid_batch)
+            
+        if raw_video:
             vid_feat_x = max_vid_sample.size(1)
             vid_feat_y = max_vid_sample.size(2)
             vid_feat_c = max_vid_sample.size(3)
@@ -315,15 +347,15 @@ def _collate_fn(
         for x in range(batch_size):
             sample = batch[x]
             video_ = sample[0]
-            vid_length = video_.size(0)
+            
             if raw_video:
-                vids[x,:vid_length,:,:,:] = video_
+                vids[x,:video_.size(0),:,:,:] = video_
             else:
-                vids[x,:vid_length,:] = video_
+                vids[x,:video_.size(0),:] = video_
     
         vid_lengths = torch.IntTensor(vid_lengths)
         
-        if raw:
+        if raw_video:
             # B T W H C --> B C T W H
             # pdb.set_trace()
             vids = vids.permute(0,4,1,2,3)
@@ -332,7 +364,4 @@ def _collate_fn(
         vids = torch.zeros((batch_size, 1))
         vid_lengths = torch.zeros((batch_size,)).to(int)
     
-    
     return vids, seqs, targets, vid_lengths, seq_lengths, target_lengths
-
-

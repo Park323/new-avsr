@@ -44,12 +44,24 @@ class FusionConformerEncoder(nn.Module):
                 *args, **kwargs):
         audio_feature = self.audio_model(audio_inputs, audio_input_lengths)
         visual_feature = self.visual_model(video_inputs, video_input_lengths)
-        features = torch.cat([visual_feature, audio_feature], dim=-1)
+        features = self.fusion(visual_feature, audio_feature)
         batch_seq_size = features.shape[:2]
         features = torch.flatten(features, end_dim=1)
         outputs = self.MLP(features)
         outputs = outputs.view(*batch_seq_size, -1)                
         return outputs
+        
+    def fusion(self, video_feature, audio_feature):
+        '''
+        ::ALERT:: This codes are only for pm video feature
+        pm features losed 4 frames from original sequence because it is not padded.
+        This code makes visual pm feature "zero padded" with front 2 frames & back 2 frames (& back extra 1 frame for sync)
+        '''
+        front_margin = 2
+        back_margin = 3 if video_feature.size(-1) == (audio_feature.size(-1) + 3) else 2
+        visual_feature = F.pad(visual_feature, (front_margin, back_margin), 'constant', 0)
+        features = torch.cat([visual_feature, audio_feature], dim=-1)
+        return features
 
 
 class AudioConformerEncoder(nn.Module):

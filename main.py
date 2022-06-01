@@ -86,6 +86,14 @@ def train(rank, world_size, dataloader, config, vocab):
             seqs = seqs.to(rank)
             targets = targets.to(rank)
             
+            """
+            Check input sizes
+            print()
+            print(vids.size())
+            print(seqs.size())
+            continue
+            """
+            
             optimizer.zero_grad()
             
             outputs = ddp_model(vids, vid_lengths,
@@ -120,7 +128,7 @@ def main(args):
         use_video = config['use_video'],
         raw_video = config['raw_video'],
         audio_transform_method = config['audio_transform_method'],
-#        audio_sample_rate = config['audio_sample_rate'],
+        audio_sample_rate = config['audio_sample_rate'],
 #        audio_n_mels = config['audio_n_mels'],
 #        audio_frame_length = config['audio_frame_length'],
 #        audio_frame_shift = config['audio_frame_shift'],
@@ -138,7 +146,7 @@ def main(args):
                                 max_len = config['max_len'],
                                 use_video = config['use_video'],
                                 raw_video = config['raw_video'],), 
-                            shuffle=True,
+                            shuffle=False,
                             num_workers=config['num_workers'])
     print(f'trainset : {len(dataset)}, {len(dataloader)} batches')
     

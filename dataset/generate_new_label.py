@@ -60,7 +60,7 @@ def generate_character_script(datasets, save_path, valid_rate=0.2):
     for usage in datasets.keys():
         _save_path = save_path.replace('.txt',f'_{usage}.txt')
         f1 = open(_save_path, "w")
-        for video_path, audio_path, transcript in zip(datasets[usage]):
+        for video_path, audio_path, transcript in zip(*datasets[usage]):
             char_id_transcript = sentence_to_target(transcript, char2id)
             f1.write(f'{video_path}\t{audio_path}\t{transcript}\t{char_id_transcript}\n')
         f1.close()
@@ -72,53 +72,65 @@ def preprocess(args):
     
     print('preprocess started..')
     
-    # define data paths
-    data_path = f"lip_{args.side}_{args.noise}_{args.sex}_0{args.age}_*_A_{args.index}"
-    folders = glob.glob(wav_txt_path+'/'+data_path)
-    print(f"{len(folders)} folders detected...")
-    
-    # count the number of files
-    dataset_path_audio = f'{wav_txt_path}/{data_path}/*.wav'
-    total_num =  len(glob.glob(dataset_path_audio))
-    train_num, test_num = total_num * 0.8, total_num * 0.1
-    
     # call redundanct speakers
-    with open('data/redundant_speaker_group.pkl') as f:
+    with open('data/redundant_speaker_group.pkl', 'rb') as f:
         redundant = pickle.load(f)
     
-    redundant = sorted(redundant, key=lambda x: -len(x))
-    datasets = {'Train':([],[],[])}
+    def cleared_len(x):
+        length = 0
+        for speaker in x:
+          condition = f"lip_{args.side}_{args.noise}_{args.sex}_0{args.age}_{speaker}_A_{args.index}"
+          dataset_path_audio = f'{wav_txt_path}/{condition}/*.wav'
+          length += len(glob.glob(dataset_path_audio))
+        return length
+    
+    total_num = 0
+    for speaker in redundant:
+        total_num += cleared_len(speaker)         
+    train_num, test_num = total_num * 0.8, total_num * 0.1
+    
+    redundant = sorted(redundant, key=lambda x: -cleared_len(x))
+    
+    datasets = {'Train':([],[],[]),
+                'Test' :([],[],[]),
+                'Valid':([],[],[]),}
     key = 'Train'
     for speaker_group in redundant:
-        for speaker in speaker_group:
-            condition = f"lip_{args.side}_{args.noise}_{args.sex}_0{args.age}_{speaker}_A_{args.index}"
-            dataset_path_audio = f'{wav_txt_path}/{condition}/*.wav'
-            [datasets[key][0].append(value) for value in sorted(glob.glob(dataset_path_audio))]
-    
-        if key == 'Train' and len(datasets['Train']) >= train_num:
-            key = 'Test'
-            datasets[key] = ([],[],[])
-        if key == 'Test' and len(datasets['Test']) >= test_num:
-            key = 'Valid'
-            datasets[key] = ([],[],[])
+        if key=='Train':
+            for speaker in speaker_group:
+                condition = f"lip_{args.side}_{args.noise}_{args.sex}_0{args.age}_{speaker}_A_{args.index}"
+                dataset_path_audio = f'{wav_txt_path}/{condition}/*.wav'
+                [datasets[key][1].append(value) for value in sorted(glob.glob(dataset_path_audio))]
+            if len(datasets['Train'][1]) >= train_num:
+                key = 'Test'
+        else:        
+            for speaker in speaker_group:
+                condition = f"lip_{args.side}_{args.noise}_{args.sex}_0{args.age}_{speaker}_A_{args.index}"
+                dataset_path_audio = f'{wav_txt_path}/{condition}/*.wav'
+                for value in sorted(glob.glob(dataset_path_audio)):
+                    datasets[key][1].append(value)
+                    if key == 'Test' and len(datasets['Test'][1]) >= test_num:
+                        key = 'Valid'
     
     for key in ['Train','Test','Valid']:
-        for path in datasets[key][0]:
+        for path in datasets[key][1]:
             # choose angle
             if args.angle != "A":
                 splited = path.split('_')
                 splited[-2] = args.angle
                 path = '_'.join(splited)
-            
             path = path.replace(wav_txt_path, video_path)
             path = path[:-4] + '.npy'
-            datasets[key][1].append(path)
+            datasets[key][0].append(path)
         
-        for file_ in datasets[key][0]:
+        for file_ in datasets[key][1]:
             txt_file_ = file_.replace('.wav','.txt')
             with open(txt_file_, "r", encoding='utf-8') as f:
                 raw_sentence = f.read().strip()
             datasets[key][2].append(raw_sentence)
+        
+        print(len(datasets[key][1]), end=' ')
+    print()
     
     return datasets
 

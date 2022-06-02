@@ -1,23 +1,35 @@
 import os
 import json
 import tqdm
+import pickle
 
-base_dir = '/home/nas4/NIA/json_bbox_included'
-files = os.listdir(base_dir)
+with open('data/redundant_speaker_group.pkl','rb') as f:
+    redun = pickle.load(f)
+    
+new_redun = []
+total = 0
+for _redun in redun:
+    for x in _redun:
+        new_redun.append(x)
+        total += 1
+print(len(set(new_redun)))
+print(total)
 
-sentence_dict = {}
-
-with open('redundant_sentences.txt', 'w') as f0:
-    for fp in tqdm.tqdm(files):
-        with open(f'{base_dir}/{fp}', encoding='utf-8') as f:
-            labels = json.load(f)
-        assert len(labels)==1, f"{fp} has {len(labels)} labels"
-        speakerID = labels[0]['speaker_info']['speaker_ID']
-        for i, label in enumerate(labels[0]['Sentence_info']):
-            if sentence_dict.get(label['sentence_text']):
-                old = sentence_dict.get(label['sentence_text'])
-                if old[0] != speakerID:
-                    print(f"{old[0]} and {speakerID} are conflicted with sentence : {label['sentence_text']}")
-                    f0.write(f"{old[1]}_{old[2]}, {labels[0]['Video_info']['video_Name']}_{i+1}, {label['sentence_text']}\n")
+import glob
+wav_txt_path = '/home/data2/nia_wav_txt_1'
+data_path = f"lip_*_*_*_0*_*_A_*"
+all = glob.glob(wav_txt_path+'/'+data_path)
+print(len(all))
+for name in tqdm.tqdm(set(new_redun)):
+    data_path = f"lip_*_*_*_0*_{name}_A_*"
+    partial = glob.glob(wav_txt_path+'/'+data_path)
+    for n in partial:
+        i = 0
+        while i < len(all):
+            if n == all[i]:
+                all.pop(i)
             else:
-                sentence_dict[label['sentence_text']] = (speakerID, labels[0]['Video_info']['video_Name'], i+1)
+                i += 1
+import pdb
+pdb.set_trace()
+print(all)

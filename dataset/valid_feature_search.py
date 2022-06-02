@@ -1,4 +1,5 @@
 import os
+import sys
 import tqdm
 import numpy as np
 
@@ -11,11 +12,14 @@ original audio length 'a' and video feature length 'v' should satisfy this.
 "a/480 - 5 <= v <= a/480 - 4
 """
 if __name__ == '__main__':
-    label_path = 'data/pm_1_clean.txt'
+    label_path = sys.argv[1]
     with open(label_path) as f:
         files = f.readlines()
+    with open(label_path.replace('.txt','.temp'), 'w') as f:
+        for line in files:
+            f.write(line)        
+    val   = open(label_path, 'w')
     inval = open(label_path.replace('.txt','_invalid.txt'), 'w')
-    val   = open(label_path.replace('.txt','_valid.txt'), 'w')
     unpaired = open(label_path.replace('.txt','_unpair.txt'), 'w')
     for path in tqdm.tqdm(files):
         video_path, audio_path, transcript, kor_transcript = path.split('\t')

@@ -21,8 +21,9 @@ for sen, group in tqdm.tqdm(logs.items()):
     if idx == -1:
         speaker_group.append(set())
     for speaker in speakers:
-        speaker_group[idx].add(speaker)
-        used.add(speaker)
+        if not speaker in used:
+            speaker_group[idx].add(speaker)
+            used.add(speaker)
                     
 with open('data/redundant_speaker_group.pkl', 'wb') as f:
     pickle.dump(speaker_group, f)

@@ -1,11 +1,11 @@
-transcripts_path_train : "sample.txt"
+transcripts_path_train : "/home/nas3/DB/NIA/wook_nia/train_nia_0_15_full_3cycle.txt"
 vocab_label : 'avsr/vocabulary/kor_characters'
-save_dir : 'results/sample_0th'
+save_dir : 'results/pm_old_0th'
 log_path : 'logs.txt'
 
-learning_rate : 0.001
-epochs : 30
-batch_size : 1
+learning_rate : 0.0001
+epochs : 50
+batch_size : 6
 num_workers : 4
 resume_epoch : 0
 

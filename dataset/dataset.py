@@ -364,4 +364,8 @@ def _collate_fn(
         vids = torch.zeros((batch_size, 1))
         vid_lengths = torch.zeros((batch_size,)).to(int)
     
+    print('show sample size')
+    print(f"video_size = {vids.size()}")
+    print(f"audio_size = {seqs.size()}")
+    
     return vids, seqs, targets, vid_lengths, seq_lengths, target_lengths

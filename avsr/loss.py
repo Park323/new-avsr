@@ -58,7 +58,7 @@ class Attention_Loss(nn.Module):
     ):
         super().__init__()
         self.att = nn.CrossEntropyLoss(
-            size_average=True, 
+            reduction='mean', 
             ignore_index=ignore_index,
         )
         

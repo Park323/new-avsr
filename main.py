@@ -20,17 +20,14 @@ from avsr.utils import get_criterion, get_optimizer, get_metric
 from dataset.dataset import load_dataset, prepare_dataset, AVcollator
 
 
-warnings.filterwarnings(action='ignore')
-
-
-def setup(rank, world_size):
+def setup(rank, world_size, port):
     """
     world_size : number of processes
     rank : this should be a number between 0 and world_size-1
     """
     
     os.environ['MASTER_ADDR'] = 'localhost'
-    os.environ['MASTER_PORT'] = '12355'
+    os.environ['MASTER_PORT'] = port
     
     '''
     Initialize the process group
@@ -39,34 +36,38 @@ def setup(rank, world_size):
     check table here : https://pytorch.org/docs/stable/distributed.html
     '''
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
-    
+
     
 def cleanup():
     dist.destroy_process_group()
 
 
 def save_checkpoint(model, checkpoint_path, epoch):
-    torch.save(model.state_dict(), f"{checkpoint_path}_{epoch:05d}.pt")
+    torch.save(model.state_dict(), f"{checkpoint_path}/{epoch:05d}.pt")
     
     
 def load_ddp_checkpoint(rank, model, checkpoint_path, epoch):
     dist.barrier()
     map_location = {'cuda:%d' % 0: 'cuda:%d' % rank}
-    state_dict = torch.load(f"{checkpoint_path}_{epoch:05d}.pt", map_location=map_location)
+    state_dict = torch.load(f"{checkpoint_path}/{epoch:05d}.pt", map_location=map_location)
     model.load_state_dict(state_dict)
 
 
-def show_description(epoch, total_epoch, it, total_it, loss, mean_loss, _time, end=False):
-    desc = f"LOSS {loss:.4f} :: MEAN LOSS {mean_loss:.2f} :: BATCH [{it}/{total_it}] :: EPOCH [{epoch}/{total_epoch}] :: [{time.time() - _time}]"
-    if end:
-        print (desc)
-    else:
-        print (desc, end="\r")
+def show_description(epoch, total_epoch, it, total_it, lr, loss, mean_loss, _time):
+    train_time = int(time.time() - _time)
+    _sec = train_time % 60
+    train_time //= 60
+    _min = train_time % 60
+    train_time //= 60
+    _hour = train_time % 24
+    _day = train_time // 24
+    desc = f"LOSS {loss:.4f} :: MEAN LOSS {mean_loss:.2f} :: LEARNING_RATE {lr:.8f} :: BATCH [{it}/{total_it}] :: EPOCH [{epoch}/{total_epoch}] :: [{_day:2d}d {_hour:2d}h {_min:2d}m {_sec:2d}s]"
+    print(desc, end="\r")
 
 
-def train(rank, world_size, config, vocab, dataloader):
+def train(rank, world_size, config, vocab, dataloader, port):
 
-    setup(rank, world_size)
+    setup(rank, world_size, port)
     
     # define a model
     model = build_model(
@@ -102,14 +103,13 @@ def train(rank, world_size, config, vocab, dataloader):
                              steps_per_epoch = len(dataloader),
                            )
     
-    train_start = time.time()
     for epoch in range(config['epochs']):
         
         dist.barrier()
         
-        epoch_total_loss = 0
-        
         ddp_model.train()
+        train_start = time.time()
+        epoch_total_loss = 0
         for it, (vids, seqs, targets, vid_lengths, seq_lengths, target_lengths) in enumerate(dataloader):
             vids = vids.to(rank)
             seqs = seqs.to(rank)
@@ -142,15 +142,16 @@ def train(rank, world_size, config, vocab, dataloader):
                                  total_epoch=config['epochs'], 
                                  it = it, 
                                  total_it = len(dataloader), 
+                                 lr = scheduler.get_lr()[0],
                                  loss = loss.item(), 
                                  mean_loss = epoch_total_loss/(it+1), 
-                                _time = train_start, 
-                                end = it==len(dataloader)-1)
+                                 _time = train_start)
             
         if rank==0:
             if not os.path.exists(config['save_dir']):
                 os.makedirs(config['save_dir'])
             save_checkpoint(model, config['save_dir'], epoch)
+        print()
         
     cleanup()
 
@@ -175,9 +176,6 @@ def main(args):
         raw_video = config['raw_video'],
         audio_transform_method = config['audio_transform_method'],
         audio_sample_rate = config['audio_sample_rate'],
-        audio_n_mels = config['audio_n_mels'],
-        audio_frame_length = config['audio_frame_length'],
-        audio_frame_shift = config['audio_frame_shift'],
         audio_normalize = config['audio_normalize'],
         spec_augment = config['spec_augment'],
         freq_mask_para = config['freq_mask_para'],
@@ -203,7 +201,7 @@ def main(args):
     '''
     world_size = args.world_size if args.world_size else torch.cuda.device_count()
     mp.spawn(train,
-             args=(world_size, config, vocab, dataloader),
+             args=(world_size, config, vocab, dataloader, args.port),
              nprocs=world_size,
              join=True)
 
@@ -216,6 +214,8 @@ def get_args():
                          type=str, help='Configuration Path')
     parser.add_argument('-d','--data_folder',
                          action = 'store_true', help='Data folder path') 
+    parser.add_argument('-p','--port',
+                         default = '12355', type = str, help='Port number of multi process')
     args = parser.parse_args()
     return args
   

@@ -42,8 +42,8 @@ class FusionConformerEncoder(nn.Module):
                 video_inputs, video_input_lengths,
                 audio_inputs, audio_input_lengths,
                 *args, **kwargs):
-        audio_feature = self.audio_model(audio_inputs, audio_input_lengths)
-        visual_feature = self.visual_model(video_inputs, video_input_lengths)
+        audio_feature = self.audio_model(None, None, audio_inputs, audio_input_lengths)
+        visual_feature = self.visual_model(video_inputs, video_input_lengths, None, None)
         features = self.fusion(visual_feature, audio_feature)
         batch_seq_size = features.shape[:2]
         features = torch.flatten(features, end_dim=1)
@@ -51,15 +51,15 @@ class FusionConformerEncoder(nn.Module):
         outputs = outputs.view(*batch_seq_size, -1)                
         return outputs
         
-    def fusion(self, video_feature, audio_feature):
+    def fusion(self, visual_feature, audio_feature):
         '''
         ::ALERT:: This codes are only for pm video feature
         pm features losed 4 frames from original sequence because it is not padded.
         This code makes visual pm feature "zero padded" with front 2 frames & back 2 frames (& back extra 1 frame for sync)
         '''
         front_margin = 2
-        back_margin = 3 if video_feature.size(-1) == (audio_feature.size(-1) + 3) else 2
-        visual_feature = F.pad(visual_feature, (front_margin, back_margin), 'constant', 0)
+        back_margin = 2 if visual_feature.size(1) + 4 == audio_feature.size(1) else 3
+        visual_feature = F.pad(visual_feature, (0, 0, front_margin, back_margin), 'constant', 0)
         features = torch.cat([visual_feature, audio_feature], dim=-1)
         return features
 
@@ -122,6 +122,5 @@ class VisualConformerEncoder(nn.Module):
     ):
         #outputs = self.front(inputs)
         outputs = video_inputs
-        print(f'visual_size : {outputs.size()}')
         outputs = self.back(outputs, video_input_lengths)
         return outputs

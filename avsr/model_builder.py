@@ -24,20 +24,13 @@ def build_model(
     if architecture == 'default':
         model = AttentionModel(vocab_size=vocab_size, pad_id=pad_id)
         model.embedder = nn.Linear(vocab_size, decoder_d_model)
-        model.encoder = AudioConformerEncoder(
+        model.encoder = FusionConformerEncoder(
             encoder_n_layer=encoder_n_layer, 
             encoder_d_model=encoder_d_model,
             encoder_n_head=encoder_n_head, 
             encoder_ff_dim=encoder_ff_dim, 
             encoder_dropout_p=encoder_dropout_p
         )
-#        model.encoder = FusionConformerEncoder(
-#            encoder_n_layer=encoder_n_layer, 
-#            encoder_d_model=encoder_d_model,
-#            encoder_n_head=encoder_n_head, 
-#            encoder_ff_dim=encoder_ff_dim, 
-#            encoder_dropout_p=encoder_dropout_p
-#        )
         model.decoder = TransformerDecoder(
             vocab_size = vocab_size,
             decoder_n_layer=decoder_n_layer, 

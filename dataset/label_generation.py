@@ -84,12 +84,12 @@ def preprocess(args):
         folders = [folder for folder in folders if folder[13]==args.expert]
     if args.speaker_id:
         folders = [folder for folder in folders if folder[14:17]==args.speaker_id]
-    if args.angle:
-        folders = [folder for folder in folders if folder[18]==args.angle]
+    #if args.angle:
+    #    folders = [folder for folder in folders if folder[18]==args.angle]
     if args.index:
         folders = [folder for folder in folders if folder[20:]==args.index]
     folders = sorted(folders)
-    print(folders)
+    print(f"{len(folders)} folders detected...")
     
     audio_paths = []
     for folder in folders:
@@ -98,6 +98,11 @@ def preprocess(args):
     
     video_paths = []
     for path in audio_paths:
+        # choose angle
+        splited = path.split('_')
+        splited[-2] = args.angle
+        path = '_'.join(splited)
+        
         path = path.replace(wav_txt_path, video_path)
         path = path[:-4] + '.npy'
         video_paths.append(path)
@@ -121,7 +126,7 @@ def get_args():
     parser.add_argument('-age', '--age', type=str, required=False)
     parser.add_argument('-ex', '--expert', type=str, required=False)
     parser.add_argument('-id', '--speaker_id', type=str, required=False)
-    parser.add_argument('-ang', '--angle', type=str, required=False)
+    parser.add_argument('-ang', '--angle', type=str, default='A', required=False)
     parser.add_argument('-idx', '--index', type=str, required=False)
     
     parser.add_argument('-d', '--wav_txt_folder', type=str, required=True)

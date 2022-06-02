@@ -71,60 +71,54 @@ def preprocess(args):
     video_path  = args.video_folder
     
     print('preprocess started..')
-    transcripts=[]
     
     # define data paths
-    data_path = f"lip_{args.side}_{args.noise}_{args.sex}_0{args.age}_{args.expert}{args.speaker_id}_A_{args.index}"
+    data_path = f"lip_{args.side}_{args.noise}_{args.sex}_0{args.age}_*_A_{args.index}"
     folders = glob.glob(wav_txt_path+'/'+data_path)
     print(f"{len(folders)} folders detected...")
     
     # count the number of files
     dataset_path_audio = f'{wav_txt_path}/{data_path}/*.wav'
-    total_num =  glob.glob(dataset_path_audio)
+    total_num =  len(glob.glob(dataset_path_audio))
     train_num, test_num = total_num * 0.8, total_num * 0.1
     
     # call redundanct speakers
-    with open('data/redundant_speaker_group.pickle') as f:
+    with open('data/redundant_speaker_group.pkl') as f:
         redundant = pickle.load(f)
     
     redundant = sorted(redundant, key=lambda x: -len(x))
+    datasets = {'Train':([],[],[])}
+    key = 'Train'
     for speaker_group in redundant:
         for speaker in speaker_group:
-            used_speakers.add(speaker)
-
-            dataset_path_audio = wav_txt_path + f'/*_{speaker}_*/*.wav'
-            audio_paths = audio_paths + sorted(glob.glob(dataset_path_audio))
-            
-            for path in audio_paths:
-                # choose angle
-                if args.angle != "A":
-                    splited = path.split('_')
-                    splited[-2] = args.angle
-                    path = '_'.join(splited)
-                
-                path = path.replace(wav_txt_path, video_path)
-                path = path[:-4] + '.npy'
-                video_paths.append(path)
-            
-            for file_ in tqdm(audio_paths):
-                txt_file_ = file_.replace('.wav','.txt')
-                with open(txt_file_, "r", encoding='utf-8') as f:
-                    raw_sentence = f.read().strip()
-                transcripts.append(raw_sentence)
-            
-            if len(tr_video_paths) >= train_num:
-                break
+            condition = f"lip_{args.side}_{args.noise}_{args.sex}_0{args.age}_{speaker}_A_{args.index}"
+            dataset_path_audio = f'{wav_txt_path}/{condition}/*.wav'
+            [datasets[key][0].append(value) for value in sorted(glob.glob(dataset_path_audio))]
     
-    if args.split:
-        datasets = {
-            "Train":(tr_video_paths, tr_audio_paths, tr_transcripts),
-            "Valid":(vl_video_paths, vl_audio_paths, vl_transcripts),
-            "Test" :(tt_video_paths, tt_audio_paths, tt_transcripts),
-        }
-    else:
-        datasets = {
-            "Train":(tr_video_paths, tr_audio_paths, tr_transcripts),
-        }
+        if key == 'Train' and len(datasets['Train']) >= train_num:
+            key = 'Test'
+            datasets[key] = ([],[],[])
+        if key == 'Test' and len(datasets['Test']) >= test_num:
+            key = 'Valid'
+            datasets[key] = ([],[],[])
+    
+    for key in ['Train','Test','Valid']:
+        for path in datasets[key][0]:
+            # choose angle
+            if args.angle != "A":
+                splited = path.split('_')
+                splited[-2] = args.angle
+                path = '_'.join(splited)
+            
+            path = path.replace(wav_txt_path, video_path)
+            path = path[:-4] + '.npy'
+            datasets[key][1].append(path)
+        
+        for file_ in datasets[key][0]:
+            txt_file_ = file_.replace('.wav','.txt')
+            with open(txt_file_, "r", encoding='utf-8') as f:
+                raw_sentence = f.read().strip()
+            datasets[key][2].append(raw_sentence)
     
     return datasets
 

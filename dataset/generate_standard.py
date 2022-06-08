@@ -1,5 +1,6 @@
 import os
 import re
+import pdb
 import glob
 import random
 import pickle
@@ -20,7 +21,7 @@ def generate_character_script(datasets, save_path, valid_rate=0.2):
 
 
 def preprocess(args):
-    file_path = "/home/nas4/NIA/original/1(소음없음)"
+    file_path = "/home/nas4/NIA/original"
     
     print('preprocess started..')
     
@@ -32,9 +33,9 @@ def preprocess(args):
     redun_lengths = []
     for group in tqdm(redundant):
         for speaker in group:
-          condition = f"lip_{args.side}_{args.noise}_{args.sex}_0{args.age}_{speaker}_A_{args.index}"
-          dataset_path_audio = f'{file_path}/*/*/{condition}.wav'
-          redun = glob.glob(dataset_path_audio)
+          condition = f"lip_{args.side}_{args.noise}_{args.sex}_0{args.age}_{speaker}_{args.angle}_{args.index}"
+          dataset_path = f'{file_path}/*/*/*/{condition}.mp4'
+          redun = glob.glob(dataset_path)
           redun_lengths.append(len(redun))
           total_paths = total_paths + redun
     
@@ -42,23 +43,35 @@ def preprocess(args):
     redundant = [redundant[sort_index[i]] for i in range(len(redundant))]
     
     total_num = len(total_paths)
-    train_num, test_num = total_num * 0.8, total_num * 0.1
+    train_num, test_num = total_num * 0.92, total_num * 0.04
     print(f'total # of chosen dataset : {total_num}')
     
     datasets = {'Train':[],
                 'Test' :[],
                 'Valid':[],}
     key = 'Train'
-    for speaker_group in tqdm(redundant):
+    for i, speaker_group in tqdm(enumerate(redundant)):
         for speaker in speaker_group:
-            condition = re.compile(f".*{speaker}.*[.]wav")
+            condition = re.compile(f".*{speaker}.*[.]mp4")
             paths = list(filter(condition.match, total_paths))
             for value in sorted(paths):
                 datasets[key].append(value)
-                if key == 'Test' and len(datasets['Test']) >= test_num:
-                    key = 'Valid'
         if key=='Train' and len(datasets['Train']) >= train_num:
-            key = 'Test'
+            break
+    
+    key = 'Test'
+    test_paths = []
+    for speaker_group in tqdm(redundant[i+1:]):
+        for speaker in speaker_group:
+            condition = re.compile(f".*{speaker}.*[.]mp4")
+            paths = list(filter(condition.match, total_paths))
+            test_paths += paths
+    import random
+    random.shuffle(test_paths)
+    for value in test_paths:
+        datasets[key].append(value)
+        if key == 'Test' and len(datasets['Test']) >= test_num:
+            key = 'Valid'
                 
     for key in ['Train','Test','Valid']:    
         print(len(datasets[key]), end=' ')
@@ -78,7 +91,7 @@ def get_args():
     parser.add_argument('-age', '--age', default="*", type=str, required=False)
     parser.add_argument('-ex', '--expert', default="*", type=str, required=False)
     parser.add_argument('-id', '--speaker_id', default="*", type=str, required=False)
-    parser.add_argument('-ang', '--angle', default='A', type=str, required=False)
+    parser.add_argument('-ang', '--angle', default='*', type=str, required=False)
     parser.add_argument('-idx', '--index', default="*", type=str, required=False)
     
     parser.add_argument('-sp', '--save_path', type=str, required=True)

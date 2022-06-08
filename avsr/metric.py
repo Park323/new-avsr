@@ -17,6 +17,8 @@ class Metric:
         self.metric.reset()
     
     def __call__(self, targets, outputs, target_lengths=None, output_lengths=None, show=False):
+        targets = targets[:,1:]
+        outputs = outputs[:,:-1]
         y_hats = outputs.max(-1)[1]
         if target_lengths is not None:
             y_hats = [output[:output_lengths[i].item()] for i, output in enumerate(y_hats)]
@@ -72,20 +74,20 @@ class ErrorRate(object):
                 s1 = self.vocab.label_to_string(target)
                 s2 = self.vocab.label_to_string(y_hat)
                 
-#            # Print Results
-#            if show:
-#                print(f"Tar: {s1}")
-#                print(f"Out: {s2}")
-#                print('==========')
-#            # Record Results
-#            else:
-#                save_folder = f'outputs/metric_log'
-#                if not os.path.exists(save_folder):
-#                    os.makedirs(save_folder)
-#                with open(f'{save_folder}/{self.log_path}.txt', 'a') as f:
-#                    f.write(f"Tar: {s1}\n")
-#                    f.write(f"Out: {s2}\n")
-#                    f.write('==========\n')
+            # Print Results
+            if show:
+                print(f"Tar: {s1}")
+                print(f"Out: {s2}")
+                print('==========')
+            # Record Results
+            else:
+                save_folder = f'results/metric_log'
+                if not os.path.exists(save_folder):
+                    os.makedirs(save_folder)
+                with open(f'{save_folder}/{self.log_path}', 'a') as f:
+                    f.write(f"Tar: {s1}\n")
+                    f.write(f"Out: {s2}\n")
+                    f.write('==========\n')
                 
             dist, length = self.metric(s1, s2)
 

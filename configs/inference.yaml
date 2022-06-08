@@ -1,13 +1,11 @@
-transcripts_path_train : "/home/nas3/DB/NIA/wook_nia/train_nia_0_15_full_3cycle.txt"
+transcripts_path_test : "data/pm_2_Train.txt"
 vocab_label : 'avsr/vocabulary/kor_characters'
-save_dir : 'results/pm_old_0th'
-log_path : 'logs.txt'
+model_path : 'results/pm_2_0th/00001.pt'
+save_dir : 'results/inference'
+log_path : 'inference_results.txt'
 
-learning_rate : 0.0001
-epochs : 50
-batch_size : 6
+batch_size : 4
 num_workers : 4
-resume_epoch : 0
 
 use_video : True
 raw_video : False
@@ -21,14 +19,6 @@ audio_fram_shift : None
 audio_normalize : True
 
 video_n_channels : 3
-
-spec_augment : False
-freq_mask_para : None
-freq_mask_num : None
-time_mask_num : None
-
-noise_augment : False
-noise_path : None
 
 encoder_n_layer : 6
 encoder_d_model: 512

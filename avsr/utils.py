@@ -6,12 +6,18 @@ from avsr.scheduler.noam import NoamLR
 
 
 def get_criterion(
-    ignore_index : int,
-    label_smoothing : float = 0.0
+    ignore_index : int = None,
+    label_smoothing : float = 0.0,
+    blank_id : int = None,
 ):
-    criterion = Attention_Loss(
-        ignore_index,
-        label_smoothing
+#    criterion = Attention_Loss(
+#        ignore_index,
+#        label_smoothing
+#    )
+    criterion = Hybrid_Loss(
+        ignore_index = ignore_index,
+        label_smoothing = label_smoothing,
+        blank_id = blank_id,        
     )
     return criterion
 
@@ -27,7 +33,7 @@ def get_optimizer(
     optimizer = Adam(params, learning_rate)
     scheduler = NoamLR(
         optimizer,
-        [2.5],
+        [float(25000/steps_per_epoch)],
         [epochs],
         [steps_per_epoch], # dataset_size / batch_size (= len(dataloader))
         [1e-10],

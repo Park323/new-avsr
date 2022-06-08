@@ -8,6 +8,7 @@ from tqdm import tqdm
 import torch
 import torch.distributed as dist
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 import torch.multiprocessing as mp
 from torch.utils.data import DataLoader
@@ -65,9 +66,23 @@ def show_description(epoch, total_epoch, it, total_it, lr, loss, mean_loss, _tim
     print(desc, end="\r")
 
 
-def train(rank, world_size, config, vocab, dataloader, port):
+def train(rank, world_size, config, vocab, dataset, port):
 
     setup(rank, world_size, port)
+    
+    # define a loader
+    sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank, drop_last=False)
+    
+    dataloader = DataLoader(dataset=dataset, batch_size=config['batch_size'],
+                            collate_fn = AVcollator(
+                                max_len = config['max_len'],
+                                use_video = config['use_video'],
+                                raw_video = config['raw_video'],), 
+                            shuffle = False,
+                            sampler = sampler,
+                            num_workers=config['num_workers'])
+    if rank==0:
+        print(f'# of batch for each rank : {len(dataloader)}')
     
     # define a model
     model = build_model(
@@ -86,14 +101,14 @@ def train(rank, world_size, config, vocab, dataloader, port):
     )
     # move the model to GPU with id rank
     model.to(rank)
+    # load state dict
+    if config['resume_epoch'] != -1:
+        load_ddp_checkpoint(rank, model, checkpoint_path=config['save_dir'], epoch=config['resume_epoch'])
+        
     ddp_model = DDP(model, device_ids=[rank], find_unused_parameters=True)
     
-    # load state dict
-    if config['resume_epoch'] != 0:
-        load_ddp_checkpoint(rank, ddp_model, checkpoint_path=config['save_dir'], epoch=config['resume_epoch'])
-    
     # define a criterion
-    criterion = get_criterion(ignore_index=vocab.pad_id)
+    criterion = get_criterion(ignore_index=vocab.pad_id, blank_id=vocab.unk_id)
     metric = get_metric(vocab, config['log_path'])
     
     optimizer, scheduler = get_optimizer(
@@ -103,9 +118,10 @@ def train(rank, world_size, config, vocab, dataloader, port):
                              steps_per_epoch = len(dataloader),
                            )
     
-    for epoch in range(config['epochs']):
-        
+    for epoch in range(config['resume_epoch']+1, config['epochs']):
         dist.barrier()
+        
+        sampler.set_epoch(epoch)
         
         ddp_model.train()
         train_start = time.time()
@@ -114,6 +130,7 @@ def train(rank, world_size, config, vocab, dataloader, port):
             vids = vids.to(rank)
             seqs = seqs.to(rank)
             targets = targets.to(rank)
+            target_lengths = target_lengths.to(rank)
             
             """
             Check input sizes
@@ -129,7 +146,7 @@ def train(rank, world_size, config, vocab, dataloader, port):
                                 seqs, seq_lengths,
                                 targets, target_lengths)
             
-            loss = criterion(outputs, targets)
+            loss = criterion(outputs=outputs, targets=targets, target_lengths=target_lengths)
             loss.backward()
             optimizer.step()
             scheduler.step(epoch*len(dataloader) + it)
@@ -184,14 +201,7 @@ def main(args):
         noise_augment = config['noise_augment'],
         noise_path = config['noise_path'],
     )
-    dataloader = DataLoader(dataset=dataset, batch_size=config['batch_size'],
-                            collate_fn = AVcollator(
-                                max_len = config['max_len'],
-                                use_video = config['use_video'],
-                                raw_video = config['raw_video'],), 
-                            shuffle=False,
-                            num_workers=config['num_workers'])
-    print(f'trainset : {len(dataset)}, {len(dataloader)} batches')
+    print(f"# of data : {len(dataset)}")
     
     # train
     '''
@@ -201,7 +211,7 @@ def main(args):
     '''
     world_size = args.world_size if args.world_size else torch.cuda.device_count()
     mp.spawn(train,
-             args=(world_size, config, vocab, dataloader, args.port),
+             args=(world_size, config, vocab, dataset, args.port),
              nprocs=world_size,
              join=True)
 

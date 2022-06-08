@@ -1,3 +1,5 @@
+import pdb
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -12,8 +14,7 @@ class EncoderDecoderModel(nn.Module):
         super().__init__()
         self.embedder = None
         self.encoder = None
-        self.attdecoder = None
-        self.ctcdecoder = None
+        self.decoder = None
         self.vocab_size = vocab_size
         self.pad_id = pad_id
         
@@ -42,9 +43,9 @@ class HybridModel(EncoderDecoderModel):
                                 audio_inputs, audio_input_lengths)
         targets = F.one_hot(targets, num_classes = self.vocab_size)
         targets = self.embedder(targets.to(torch.float32))
-        output_a = F.log_softmax(self.attdecoder(targets, features, pad_id=self.pad_id), dim=-1)
-        output_b = F.log_softmax(self.ctcdecoder(features), dim=-1)
-        return (output_a, output_b)
+        outputs = self.decoder(inputs=features, labels=targets, pad_id=self.pad_id)
+        outputs = (F.log_softmax(outputs[0], dim=-1), F.log_softmax(outputs[0], dim=-1))
+        return outputs
 
 
 class AttentionModel(EncoderDecoderModel):
@@ -62,9 +63,9 @@ class AttentionModel(EncoderDecoderModel):
                                 audio_inputs, audio_input_lengths)
         targets = F.one_hot(targets, num_classes = self.vocab_size)
         targets = self.embedder(targets.to(torch.float32))
-        output = self.decoder(targets, features, pad_id=self.pad_id)
-        output = F.log_softmax(output, dim=-1)
-        return output
+        outputs = self.decoder(targets, features, pad_id=self.pad_id)
+        outputs = F.log_softmax(outputs, dim=-1)
+        return outputs
 
 
 class CTCModel(EncoderDecoderModel):
@@ -82,5 +83,6 @@ class CTCModel(EncoderDecoderModel):
                                 audio_inputs, audio_input_lengths)
         targets = F.one_hot(targets, num_classes = self.vocab_size)
         targets = self.embedder(targets.to(torch.float32))
-        output = F.log_softmax(self.ctcdecoder(features), dim=-1)
-        return output
+        outputs = self.ctcdecoder(features)
+        outputs = F.log_softmax(outputs, dim=-1)
+        return outputs

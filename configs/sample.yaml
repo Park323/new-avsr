@@ -1,13 +1,13 @@
-transcripts_path_train : "sample.txt"
+transcripts_path_train : "data/pm_2_Train.txt"
 vocab_label : 'avsr/vocabulary/kor_characters'
-save_dir : 'results/sample_0th'
+save_dir : 'results/pm_2_0th'
 log_path : 'logs.txt'
 
-learning_rate : 0.001
-epochs : 30
-batch_size : 1
+learning_rate : 0.0004
+epochs : 50
+batch_size : 4
 num_workers : 4
-resume_epoch : 0
+resume_epoch : -1
 
 use_video : True
 raw_video : False
@@ -30,16 +30,16 @@ time_mask_num : None
 noise_augment : False
 noise_path : None
 
-encoder_n_layer : 6
+encoder_n_layer : 12
 encoder_d_model: 512
 encoder_n_head: 8
-encoder_ff_dim: 1024
+encoder_ff_dim: 2048
 encoder_dropout_p: 0.1
 
-decoder_n_layer : 12
+decoder_n_layer : 6
 decoder_d_model: 512
 decoder_n_head: 8
-decoder_ff_dim: 1024
+decoder_ff_dim: 2048
 decoder_dropout_p: 0.1
 
 max_len : 150

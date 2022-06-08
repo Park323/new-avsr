@@ -18,8 +18,7 @@ class Metric:
     
     def __call__(self, targets, outputs, target_lengths=None, output_lengths=None, show=False):
         targets = targets[:,1:]
-        outputs = outputs[:,:-1]
-        y_hats = outputs.max(-1)[1]
+        y_hats = outputs
         if target_lengths is not None:
             y_hats = [output[:output_lengths[i].item()] for i, output in enumerate(y_hats)]
             targets = [target[:target_lengths[i].item()] for i, target in enumerate(targets)]

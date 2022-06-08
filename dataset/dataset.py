@@ -204,7 +204,6 @@ class AV_Dataset(Dataset):
     
     def parse_video(self, video_path: str):
         video = np.load(video_path)
-        video = video.transpose(1,0)
         video = torch.from_numpy(video).float()
         if self.raw_video:
             video -= torch.mean(video)
@@ -323,7 +322,9 @@ def _collate_fn(
         sample = batch[x]
         tensor = sample[1]
         target = sample[2]
+        target = target[:max_target_size]
         seq_length = tensor.size(0)
+        # in 0 dim, mask 0 to seq_length
         seqs[x].narrow(0, 0, seq_length).copy_(tensor)
         targets[x].narrow(0, 0, len(target)).copy_(torch.LongTensor(target))
     

@@ -42,4 +42,6 @@ decoder_n_head: 8
 decoder_ff_dim: 2048
 decoder_dropout_p: 0.1
 
+ctc_rate : 0.3
+
 max_len : 150

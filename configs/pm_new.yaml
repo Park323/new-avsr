@@ -1,10 +1,13 @@
-transcripts_path_test : "data/pm_2_Train.txt"
+transcripts_path_train : "data/clean_A_Train.txt"
 vocab_label : 'avsr/vocabulary/kor_characters'
-model_path : 'results/pm_2_0th/00035.pt'
-save_dir : 'results/inference'
-log_path : 'inference_results.txt'
+save_dir : 'results/pm_rev'
+log_path : 'logs.txt'
 
+learning_rate : 0.0004
+epochs : 50
+batch_size : 4
 num_workers : 4
+resume_epoch : -1
 
 use_video : True
 raw_video : False
@@ -19,6 +22,14 @@ audio_normalize : True
 
 video_n_channels : 3
 
+spec_augment : False
+freq_mask_para : None
+freq_mask_num : None
+time_mask_num : None
+
+noise_augment : False
+noise_path : None
+
 encoder_n_layer : 12
 encoder_d_model: 512
 encoder_n_head: 8
@@ -31,4 +42,6 @@ decoder_n_head: 8
 decoder_ff_dim: 2048
 decoder_dropout_p: 0.1
 
-max_len : 20
+ctc_rate : 0.3
+
+max_len : 150

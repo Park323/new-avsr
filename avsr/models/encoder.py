@@ -57,9 +57,13 @@ class FusionConformerEncoder(nn.Module):
         pm features losed 4 frames from original sequence because it is not padded.
         This code makes visual pm feature "zero padded" with front 2 frames & back 2 frames (& back extra 1 frame for sync)
         '''
-        front_margin = 2
-        back_margin = 2 if visual_feature.size(1) + 4 == audio_feature.size(1) else 3
+        diff = audio_feature.size(1) - visual_feature.size(1)
+        if diff > 10:
+            print(f"feature size differs {diff} frames")
+        front_margin = diff//2
+        back_margin = diff - front_margin
         visual_feature = F.pad(visual_feature, (0, 0, front_margin, back_margin), 'constant', 0)
+        
         features = torch.cat([visual_feature, audio_feature], dim=-1)
         return features
 

@@ -164,7 +164,7 @@ def train(rank, world_size, config, vocab, dataset, port):
                                  mean_loss = epoch_total_loss/(it+1), 
                                  _time = train_start)
             
-        if rank==0:
+        if rank==0 and epoch%5==0:
             if not os.path.exists(config['save_dir']):
                 os.makedirs(config['save_dir'])
             save_checkpoint(model, config['save_dir'], epoch)

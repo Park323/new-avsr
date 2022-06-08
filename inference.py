@@ -8,13 +8,14 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
+from avsr.search import *
 from avsr.model_builder import build_model
-from avsr.vocabulary.vocabulary import KsponSpeechVocabulary
 from avsr.utils import get_criterion, get_optimizer, get_metric
+from avsr.vocabulary.vocabulary import KsponSpeechVocabulary
 from dataset.dataset import load_dataset, prepare_dataset, AVcollator
 
 
-def show_description(it, total_it, loss, mean_loss, cer, mean_cer, _time):
+def show_description(it, total_it, cer, mean_cer, _time):
     train_time = int(time.time() - _time)
     _sec = train_time % 60
     train_time //= 60
@@ -22,7 +23,7 @@ def show_description(it, total_it, loss, mean_loss, cer, mean_cer, _time):
     train_time //= 60
     _hour = train_time % 24
     _day = train_time // 24
-    desc = f"LOSS {loss:.4f} :: MEAN LOSS {mean_loss:.2f} :: CER {cer:.4f} :: MEAN CER {mean_cer:.2f} :: BATCH [{it}/{total_it}] :: [{_day:2d}d {_hour:2d}h {_min:2d}m {_sec:2d}s]"
+    desc = f"CER {cer:.4f} :: MEAN CER {mean_cer:.2f} :: BATCH [{it}/{total_it}] :: [{_day:2d}d {_hour:2d}h {_min:2d}m {_sec:2d}s]"
     print(desc, end="\r")
 
 
@@ -33,7 +34,7 @@ def load_checkpoint(model, checkpoint_path, device='cpu'):
 
 def infer(config, vocab, dataset, device='cpu'):
         
-    dataloader = DataLoader(dataset=dataset, batch_size=config['batch_size'],
+    dataloader = DataLoader(dataset=dataset, batch_size=1,
                             collate_fn = AVcollator(
                                 max_len = config['max_len'],
                                 use_video = config['use_video'],
@@ -68,30 +69,35 @@ def infer(config, vocab, dataset, device='cpu'):
     
     model.eval()
     eval_start = time.time()
-    total_loss = 0
     total_cer = 0
     for it, (vids, seqs, targets, vid_lengths, seq_lengths, target_lengths) in enumerate(dataloader):
         vids = vids.to(device)
+        vids = vids.permute(0,2,1) # temporarily fixed
         seqs = seqs.to(device)
         targets = targets.to(device)
         target_lengths = target_lengths.to(device)
         
-        outputs = model(vids, vid_lengths,
-                            seqs, seq_lengths,
-                            targets, target_lengths)
+        with torch.no_grad():
+            outputs = transformerSearch(model, 
+                                   vids, vid_lengths,
+                                   seqs, seq_lengths,
+                                   targets, target_lengths,
+                                   max_len=config['max_len'],
+                                   vocab_size=len(vocab),
+                                   pad_id=vocab.pad_id,
+                                   sos_id=vocab.sos_id,
+                                   eos_id=vocab.eos_id,
+                                   blank_id=vocab.unk_id,
+                                   device=device)
         
-        loss = criterion(outputs=outputs, targets=targets, target_lengths=target_lengths)
-        output_lengths = torch.tensor([outputs[0].size(1) for _ in range(outputs[0].size(0))]).to(device)
-        cer  = metric(outputs=outputs[0], targets=targets, output_lengths=output_lengths, target_lengths=target_lengths)
+        output_lengths = torch.tensor([len(outputs[0])]).to(device)
+        cer  = metric(outputs=outputs, targets=targets, output_lengths=output_lengths, target_lengths=target_lengths)
         
-        total_loss += loss.item()
         total_cer  += cer
         
         # show description
         show_description(it = it,
                          total_it = len(dataloader), 
-                         loss = loss.item(),
-                         mean_loss = total_loss/(it+1),
                          cer = cer,
                          mean_cer = total_cer/(it+1),
                          _time = eval_start)

@@ -64,6 +64,27 @@ def generate_character_script(datasets, save_path, valid_rate=0.2):
             char_id_transcript = sentence_to_target(transcript, char2id)
             f1.write(f'{video_path}\t{audio_path}\t{transcript}\t{char_id_transcript}\n')
         f1.close()
+        
+        
+def generate_character_script_from_path(path):
+    print('create_script started..')
+    
+    with open(path) as f:
+        paths = f.readlines()
+    with open(path.replace('.txt','.tmp'), 'w') as f:
+        [f.write(path) for path in paths]
+        
+    char2id, id2char = load_label("./avsr/vocabulary/kor_characters.csv")
+    
+    with open(path, 'w') as f:
+        for _paths in paths:
+            units = _paths.strip('\n').split('\t')
+            if len(units)!=3:
+                print(units) 
+                continue
+            video_path, audio_path, transcript = units
+            char_id_transcript = sentence_to_target(transcript, char2id)
+            f.write(f'{video_path}\t{audio_path}\t{transcript}\t{char_id_transcript}\n')
 
 
 def preprocess(args):

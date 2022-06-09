@@ -127,6 +127,7 @@ def train(rank, world_size, config, vocab, dataset, port):
         train_start = time.time()
         epoch_total_loss = 0
         for it, (vids, seqs, targets, vid_lengths, seq_lengths, target_lengths) in enumerate(dataloader):
+            
             vids = vids.to(rank)
             seqs = seqs.to(rank)
             targets = targets.to(rank)
@@ -139,7 +140,7 @@ def train(rank, world_size, config, vocab, dataset, port):
             print(seqs.size())
             continue
             """
-            
+                     
             optimizer.zero_grad()
             
             outputs = ddp_model(vids, vid_lengths,

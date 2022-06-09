@@ -211,9 +211,8 @@ class AV_Dataset(Dataset):
         return video
 
     def parse_transcript(self, transcript):
-        tokens = transcript.split(' ')
+        tokens = transcript.strip().split(' ')
         transcript = list()
-
         transcript.append(int(self.sos_id))
         for token in tokens:
             transcript.append(int(token))
@@ -302,7 +301,7 @@ def _collate_fn(
     # sort by sequence length for rnn.pack_padded_sequence()
     batch = sorted(batch, key=lambda sample: sample[0].size(0), reverse=True)
     seq_lengths = [len(s[1]) for s in batch]
-    target_lengths = [len(s[2]) - 1 for s in batch]
+    target_lengths = [min(max_target_len, len(s[2]))-1 for s in batch]
     target_lengths = torch.IntTensor(target_lengths)
     
     max_seq_sample = max(batch, key=seq_length_)[1]

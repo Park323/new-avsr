@@ -1,6 +1,6 @@
-transcripts_path_train : "data/clean_A_Train.txt"
+transcripts_path_train : "data/clean_A_Train_maxs.txt"
 vocab_label : 'avsr/vocabulary/kor_characters'
-save_dir : 'results/pm_rev'
+save_dir : 'results/tmp'
 log_path : 'logs.txt'
 
 learning_rate : 0.0004

@@ -60,6 +60,7 @@ class FusionConformerEncoder(nn.Module):
         diff = audio_feature.size(1) - visual_feature.size(1)
         if diff > 10:
             print(f"feature size differs {diff} frames")
+            print()
         front_margin = diff//2
         back_margin = diff - front_margin
         visual_feature = F.pad(visual_feature, (0, 0, front_margin, back_margin), 'constant', 0)

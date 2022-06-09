@@ -83,8 +83,14 @@ def generate_character_script_from_path(path):
                 print(units) 
                 continue
             video_path, audio_path, transcript = units
-            char_id_transcript = sentence_to_target(transcript, char2id)
-            f.write(f'{video_path}\t{audio_path}\t{transcript}\t{char_id_transcript}\n')
+            if re.search('\((.*)\)/\((.*)\)', transcript):
+                for group_num in [1,2]:
+                    _transcript = re.sub('\((.*)\)/\((.*)\)', f"\{group_num}", transcript)
+                    char_id_transcript = sentence_to_target(_transcript, char2id)
+                    f.write(f'{video_path}\t{audio_path}\t{_transcript}\t{char_id_transcript}\n')
+            else:
+                char_id_transcript = sentence_to_target(transcript, char2id)
+                f.write(f'{video_path}\t{audio_path}\t{transcript}\t{char_id_transcript}\n')
 
 
 def preprocess(args):

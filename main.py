@@ -12,13 +12,13 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torch.multiprocessing as mp
 from torch.utils.data import DataLoader
-from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 
 from avsr.model_builder import build_model
 from avsr.vocabulary.vocabulary import KsponSpeechVocabulary
 from avsr.utils import get_criterion, get_optimizer, get_metric
 from dataset.dataset import load_dataset, prepare_dataset, AVcollator
+from dataset.sampler import DistributedCurriculumSampler
 
 
 def setup(rank, world_size, port):
@@ -71,7 +71,7 @@ def train(rank, world_size, config, vocab, dataset, port):
     setup(rank, world_size, port)
     
     # define a loader
-    sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank, drop_last=False)
+    sampler = DistributedCurriculumSampler(dataset, num_replicas=world_size, rank=rank, drop_last=False)
     
     dataloader = DataLoader(dataset=dataset, batch_size=config['batch_size'],
                             collate_fn = AVcollator(

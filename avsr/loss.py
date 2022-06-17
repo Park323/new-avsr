@@ -18,7 +18,7 @@ class Hybrid_Loss(nn.Module):
     ):
         super().__init__()
         self.ctc_rate = ctc_rate
-        self.ctc   = CTC_Loss(blank_id=blank_id)
+        self.ctc   = CTC_Loss(blank_id = blank_id)
         self.att   = Attention_Loss(ignore_index=ignore_index, label_smoothing = label_smoothing)
         
     def forward(self, outputs, targets, target_lengths):
@@ -32,20 +32,19 @@ class Hybrid_Loss(nn.Module):
         
 class CTC_Loss(nn.Module):
     def __init__(
-        self, 
+        self,
         blank_id = None,        
     ):
         super().__init__()
         self.ctc   = nn.CTCLoss(blank=blank_id, reduction='mean', zero_infinity=True)
         
     def forward(self, outputs, targets, target_lengths, *args, **kwargs):
-        targets = targets[:,1:]
         ctc_out = outputs.contiguous().permute(1,0,2) # (B,L,E)->(L,B,E)
         ctc_loss = self.ctc(ctc_out, targets,
                             (torch.ones(ctc_out.shape[1])*ctc_out.shape[0]).to(torch.int),
-                            target_lengths)
+                            target_lengths,)
         return ctc_loss
-        
+    
         
 class Attention_Loss(nn.Module):
     def __init__(
@@ -60,8 +59,7 @@ class Attention_Loss(nn.Module):
         )
         
     def forward(self, outputs, targets, *args, **kwargs):
-        targets = targets[:,1:]
-        out = outputs[:,:-1].contiguous().view(-1,outputs.shape[-1])
+        out = outputs.contiguous().view(-1,outputs.shape[-1])
         targets = targets.contiguous().view(-1)
         loss = self.att(out, targets)
         return loss

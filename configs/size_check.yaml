@@ -1,13 +1,17 @@
-transcripts_path_train : "data/clean_A_Train_maxs.txt"
-vocab_label : 'avsr/vocabulary/kor_characters'
+transcripts_path_train : "data/1_A_DLR_with_character_max.txt"
 save_dir : 'results/tmp'
 log_path : 'logs.txt'
 
-learning_rate : 0.0004
+architecture: 'att'
+ctc_rate : None
+loss_fn: 'att'
+learning_rate : 0.0001
 epochs : 50
 batch_size : 2
 num_workers : 4
 resume_epoch : -1
+
+max_len : 150
 
 use_video : True
 raw_video : False
@@ -41,7 +45,3 @@ decoder_d_model: 512
 decoder_n_head: 8
 decoder_ff_dim: 2048
 decoder_dropout_p: 0.1
-
-ctc_rate : 0.3
-
-max_len : 150

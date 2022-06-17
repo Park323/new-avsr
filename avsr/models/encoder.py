@@ -58,9 +58,9 @@ class FusionConformerEncoder(nn.Module):
         This code makes visual pm feature "zero padded" with front 2 frames & back 2 frames (& back extra 1 frame for sync)
         '''
         diff = audio_feature.size(1) - visual_feature.size(1)
-        if diff > 10:
-            print(f"feature size differs {diff} frames")
-            print()
+#        if diff > 10:
+#            print(f"feature size differs {diff} frames")
+#            print()
         front_margin = diff//2
         back_margin = diff - front_margin
         visual_feature = F.pad(visual_feature, (0, 0, front_margin, back_margin), 'constant', 0)

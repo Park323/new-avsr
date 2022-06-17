@@ -6,23 +6,45 @@ import os
 from avsr.vocabulary.vocabulary import grp2char
 
 class Metric:
-    def __init__(self, vocab, log_path):
+    def __init__(self, vocab, log_path, unit='character', error_type='cer'):
         super().__init__()
-        self.metric = CharacterErrorRate(
-            vocab,
-            log_path = log_path
-        )
-        
+        if unit=='character':
+            if error_type=='cer':
+                self.metric = CharacterErrorRate(
+                    vocab,
+                    log_path = log_path
+                )
+            elif error_type=='wer':
+                self.metric = WordErrorRate(
+                    vocab,
+                    log_path = None
+                )
+        elif unit=='grapheme':
+            if error_type=='ger':
+                self.metric = CharacterErrorRate(
+                    vocab
+                )
+            elif error_type=='cer':
+                self.metric = CharacterErrorRate_GR(
+                    vocab,
+                    log_path = log_path
+                ) 
+            elif error_type=='wer':
+                self.metric = WordErrorRate_GR(
+                    vocab,
+                    log_path = None
+                )
+
     def reset(self):
         self.metric.reset()
     
     def __call__(self, targets, outputs, target_lengths=None, output_lengths=None, show=False):
-        targets = targets[:,1:]
         y_hats = outputs
         if target_lengths is not None:
             y_hats = [output[:output_lengths[i].item()] for i, output in enumerate(y_hats)]
             targets = [target[:target_lengths[i].item()] for i, target in enumerate(targets)]
         return self.metric(targets, y_hats, show=show)
+    
 
 class ErrorRate(object):
     """
@@ -63,15 +85,8 @@ class ErrorRate(object):
         total_length = 0
 
         for (target, y_hat) in zip(targets, y_hats):
-            #pdb.set_trace()
-            if self.use_grapheme:
-                s1 = self.vocab.label_to_string(target, tolist=True)
-                s2 = self.vocab.label_to_string(y_hat, tolist=True)
-                s1 = grp2char(s1)
-                s2 = grp2char(s2)
-            else:
-                s1 = self.vocab.label_to_string(target)
-                s2 = self.vocab.label_to_string(y_hat)
+            s1 = self.vocab.label_to_string(target)
+            s2 = self.vocab.label_to_string(y_hat)
                 
             # Print Results
             if show:
@@ -79,7 +94,7 @@ class ErrorRate(object):
                 print(f"Out: {s2}")
                 print('==========')
             # Record Results
-            else:
+            elif self.log_path:
                 save_folder = f'results/metric_log'
                 if not os.path.exists(save_folder):
                     os.makedirs(save_folder)
@@ -92,7 +107,7 @@ class ErrorRate(object):
 
             total_dist += dist
             total_length += length
-
+            
         return total_dist, total_length
 
     def metric(self, *args, **kwargs):
@@ -119,13 +134,25 @@ class CharacterErrorRate(ErrorRate):
         return dist, length
 
 
+class CharacterErrorRate_GR(CharacterErrorRate):
+    
+    def __init__(self, vocab, log_path:str = None):
+        super().__init__(vocab, log_path)
+    
+    def metric(self, s1:str, s2:str):
+        s1 = grp2char(s1)
+        s2 = grp2char(s2)
+        
+        return super().metric(s1, s2)
+
+
 class WordErrorRate(ErrorRate):
     """
     Computes the Word Error Rate, defined as the edit distance between the
     two provided sentences after tokenizing to words.
     """
-    def __init__(self):
-        super(WordErrorRate, self).__init__()
+    def __init__(self, vocab, log_path:str = None):
+        super(WordErrorRate, self).__init__(vocab, log_path)
 
     def metric(self, s1, s2):
         """
@@ -149,3 +176,15 @@ class WordErrorRate(ErrorRate):
         length = len(s1.split())
 
         return dist, length
+
+
+class WordErrorRate_GR(WordErrorRate):
+    
+    def __init__(self, vocab, log_path:str = None):
+        super().__init__(vocab, log_path)
+    
+    def metric(self, s1:str, s2:str):
+        s1 = grp2char(s1)
+        s2 = grp2char(s2)
+        
+        return super().metric(s1, s2)

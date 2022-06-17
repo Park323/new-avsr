@@ -17,7 +17,7 @@ CHOSUNG_LIST = ['ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', '
 JUNGSUNG_LIST = ['ㅏ', 'ㅐ', 'ㅑ', 'ㅒ', 'ㅓ', 'ㅔ', 'ㅕ', 'ㅖ', 'ㅗ', 'ㅘ', 'ㅙ', 'ㅚ', 'ㅛ', 'ㅜ', 'ㅝ', 'ㅞ', 'ㅟ', 'ㅠ', 'ㅡ', 'ㅢ', 'ㅣ']
 
 # 종성 리스트. 00 ~ 27 + 1(1개 없음)
-JONGSUNG_LIST = [None, 'ㄱ', 'ㄲ', 'ㄳ', 'ㄴ', 'ㄵ', 'ㄶ', 'ㄷ', 'ㄹ', 'ㄺ', 'ㄻ', 'ㄼ', 'ㄽ', 'ㄾ', 'ㄿ', 'ㅀ', 'ㅁ', 'ㅂ', 'ㅄ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ']
+JONGSUNG_LIST = ['<unk>', 'ㄱ', 'ㄲ', 'ㄳ', 'ㄴ', 'ㄵ', 'ㄶ', 'ㄷ', 'ㄹ', 'ㄺ', 'ㄻ', 'ㄼ', 'ㄽ', 'ㄾ', 'ㄿ', 'ㅀ', 'ㅁ', 'ㅂ', 'ㅄ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ']
 
 
 def char2ord(x):
@@ -34,7 +34,6 @@ def ord_labeling(df):
 
 def char2grp(test_keyword):
     split_keyword_list = list(test_keyword)
-    #print(split_keyword_list)
 
     result = list()
     for keyword in split_keyword_list:
@@ -43,41 +42,32 @@ def char2grp(test_keyword):
             char_code = ord(keyword) - BASE_CODE
             char1 = int(char_code / CHOSUNG)
             result.append(CHOSUNG_LIST[char1])
-            #print('초성 : {}'.format(CHOSUNG_LIST[char1]))
             char2 = int((char_code - (CHOSUNG * char1)) / JUNGSUNG)
             result.append(JUNGSUNG_LIST[char2])
-            #print('중성 : {}'.format(JUNGSUNG_LIST[char2]))
             char3 = int((char_code - (CHOSUNG * char1) - (JUNGSUNG * char2)))
             if char3==0:
-                # result.append('<unk>') # att_0
-                result.append('<emp>') # att_1, ctc_2
-                # att_2
+                #result.append('<unk>')
+                pass
             else:
-                result.append(f'#{JONGSUNG_LIST[char3]}')
-            #print('종성 : {}'.format(JONGSUNG_LIST[char3]))
+                result.append(f'\{JONGSUNG_LIST[char3]}')
         else:
             result.append(keyword)
-    # result
     return result
 
 
 def grp2char(JASOlist):
-    #id2KR = {code-BASE_CODE+5:chr(code)
-    #         for code in range(BASE_CODE, END_CODE + 1)}
-    id2KR = {code-BASE_CODE+6:chr(code)
-             for code in range(BASE_CODE, END_CODE + 1)} # att_1, ctc_2
+    id2KR = {code-BASE_CODE+5:chr(code)
+             for code in range(BASE_CODE, END_CODE + 1)}
     id2KR[0] = '<pad>'
     id2KR[1] = '<sos>'
     id2KR[2] = '<eos>' 
     id2KR[3] = '<unk>'
     id2KR[4] = ' '
-    id2KR[5] = '<emp>' # att_1, ctc_2
-    # 6 ~ ... => 가 ~ .. 힣
+    # 5 ~ ... => 가 ~ .. 힣
     KR2id = {key:value for value, key in id2KR.items()}
     
     def reset_count():
-        # return 0, 5 # att_0
-        return 0, 6 # att_1, ctc_2
+        return 0, 5
     
     result = list()
     chr_count, chr_id = reset_count()
@@ -94,7 +84,7 @@ def grp2char(JASOlist):
             result.append(JS)
             continue
                         
-        JS = JS.replace('#', '')
+        JS = JS.replace('\\', '')
         
         if JS in lists[chr_count]:
             chr_id += lists[chr_count].index(JS) * nums[chr_count]
@@ -102,7 +92,7 @@ def grp2char(JASOlist):
         else:
             chr_count, chr_id = reset_count()
             continue
-                
+        
         if chr_count == 3 or (chr_count == 2 and i==len(JASOlist)-1):
             result.append(id2KR[chr_id])
             chr_count, chr_id = reset_count()
@@ -127,9 +117,10 @@ class Vocabulary(object):
 
 
 class KsponSpeechVocabulary(Vocabulary):
-    def __init__(self, encoding='utf-8'):
+    def __init__(self, unit='character', encoding='utf-8'):
         super(KsponSpeechVocabulary, self).__init__()
         
+        self.unit = unit
         self.vocab_dict, self.id_dict = self.load_vocab(encoding=encoding)
         self.sos_id = int(self.vocab_dict['<sos>'])
         self.eos_id = int(self.vocab_dict['<eos>'])
@@ -154,9 +145,7 @@ class KsponSpeechVocabulary(Vocabulary):
             for label in labels:
                 if label.item() == self.eos_id:
                     break
-                #elif label.item() == self.unk_id:
-                elif label.item() == self.unk_id or label.item()==int(self.vocab_dict.get('<emp>',-1)): # att_1, ctc_2
-                    #print(label.item()) # att_1, ctc_2
+                elif label.item() == self.unk_id:
                     continue
                 if tolist:
                     sentence.append(self.id_dict[label.item()])
@@ -170,10 +159,6 @@ class KsponSpeechVocabulary(Vocabulary):
             for label in batch:
                 if label.item() == self.eos_id:
                     break
-                #elif label.item() == self.unk_id:
-                elif label.item() == self.unk_id or label.item()==int(self.vocab_dict['<emp>']): # att_1, ctc_2
-                    #print(label.item()) # att_1, ctc_2
-                    continue                    
                 if tolist:
                     sentence.append(self.id_dict[label.item()])
                 else:
@@ -195,7 +180,7 @@ class KsponSpeechVocabulary(Vocabulary):
         id2unit = dict()
         
         try:
-            with open("avsr/vocabulary/kor_characters.csv", 'r', encoding=encoding) as f:
+            with open(f"avsr/vocabulary/kor_{self.unit}.csv", 'r', encoding=encoding) as f:
                 labels = csv.reader(f, delimiter=',')
                 next(labels)
                 

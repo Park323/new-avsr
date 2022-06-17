@@ -30,14 +30,19 @@ def load_label(filepath, encoding='utf-8'):
     return char2id, id2char
 
 
-def sentence_to_target(sentence, char2id):
+def sentence_to_target(sentence, char2id, unit='character'):
+    # tokenize
+    if unit=='character':
+        _sentence = sentence
+    elif unit=='grapheme':
+        _sentence = char2grp(sentence)
     target = str()
     
-    for ch in sentence:
+    for ch in _sentence:
         try:
             target += (str(char2id[ch]) + ' ')
         except KeyError:
-            print(f"KeyError Occured, Key : '{ch}'")
+            print(f"KeyError Occured, Key : '{ch}', sentence : '{sentence}'")
             continue
 
     return target[:-1]
@@ -65,32 +70,69 @@ def generate_character_script(datasets, save_path, valid_rate=0.2):
             f1.write(f'{video_path}\t{audio_path}\t{transcript}\t{char_id_transcript}\n')
         f1.close()
         
+    
+def num2kor(num):
+    num = int(num)
+    unit = ['일','만','억','조']
+    sub_unit = ['일','십','백','천']
+    nums = '영일이삼사오육칠팔구'
+    string = ''
+    
+    if num == 0:
+        return nums[num]
+    if num == 10000:
+        return unit[1]
         
-def generate_character_script_from_path(path):
+    for i in range(len(unit)-1, -1, -1):
+        k, num = divmod(num, 10**(4*i))
+        if k==0: continue
+        for j in range(3, -1, -1):
+            l, k = divmod(k, 10**j)
+            if l > 0:
+                if l > 1 or j == 0:
+                    string += nums[l]
+                if j > 0: string += sub_unit[j]
+        if i > 0:
+            string += unit[i]
+            string += ' '
+    return string
+    
+    
+        
+def unzip_groups(f, char2id, unit, video_path, audio_path, transcript):
+    #pdb.set_trace()
+    pattern = '(\(([^(/)]+)\)([^(/)]*))\/?(\(([^(/)]+)\)(\3)?)'
+    if re.search(pattern, transcript):
+        for group_num in [1,4]:
+            _transcript = re.sub(pattern, f"\{group_num}", transcript)
+            _transcript = re.sub('[(/)]', "", _transcript)
+            unzip_groups(f, char2id, unit, video_path, audio_path, _transcript)
+    else:
+        char_id_transcript = sentence_to_target(transcript, char2id, unit)
+        f.write(f'{video_path}\t{audio_path}\t{transcript}\t{char_id_transcript}\n')
+
+        
+def generate_script_from_path(path, unit='character'):
     print('create_script started..')
     
     with open(path) as f:
         paths = f.readlines()
-    with open(path.replace('.txt','.tmp'), 'w') as f:
-        [f.write(path) for path in paths]
         
-    char2id, id2char = load_label("./avsr/vocabulary/kor_characters.csv")
+    char2id, id2char = load_label(f"./avsr/vocabulary/kor_{unit}.csv")
     
-    with open(path, 'w') as f:
+    with open(path.replace('.txt',f'_with_{unit}.txt'), 'w') as f:
         for _paths in paths:
             units = _paths.strip('\n').split('\t')
             if len(units)!=3:
                 print(units) 
                 continue
             video_path, audio_path, transcript = units
-            if re.search('\((.*)\)/\((.*)\)', transcript):
-                for group_num in [1,2]:
-                    _transcript = re.sub('\((.*)\)/\((.*)\)', f"\{group_num}", transcript)
-                    char_id_transcript = sentence_to_target(_transcript, char2id)
-                    f.write(f'{video_path}\t{audio_path}\t{_transcript}\t{char_id_transcript}\n')
-            else:
-                char_id_transcript = sentence_to_target(transcript, char2id)
-                f.write(f'{video_path}\t{audio_path}\t{transcript}\t{char_id_transcript}\n')
+            
+            transcript = re.sub('\xa0',' ',transcript) # \xa0 : space
+            transcript = re.sub('[Xx]',' ',transcript) # x : mute
+            transcript = re.sub('[%]','퍼센트',transcript) # % : percent
+            transcript = re.sub('\d+', lambda x: num2kor(x.group(0)), transcript) # number
+            unzip_groups(f, char2id, unit, video_path, audio_path, transcript) # (아기씨)/(애기씨) (안돼써)(안됐어) (그런)게/(그러)게
 
 
 def preprocess(args):
@@ -106,7 +148,7 @@ def preprocess(args):
     def cleared_len(x):
         length = 0
         for speaker in x:
-          condition = f"lip_{args.side}_{args.noise}_{args.sex}_0{args.age}_{speaker}_A_{args.index}"
+          condition = f"lip_{args.side}_{args.noise}_{args.sex}_0{args.age}_{speaker}_{args.angle}_{args.index}"
           dataset_path_audio = f'{wav_txt_path}/{condition}/*.wav'
           length += len(glob.glob(dataset_path_audio))
         return length
@@ -118,26 +160,20 @@ def preprocess(args):
     
     redundant = sorted(redundant, key=lambda x: -cleared_len(x))
     
+    # ---------split exclusively--------- #
     datasets = {'Train':([],[],[]),
                 'Test' :([],[],[]),
                 'Valid':([],[],[]),}
     key = 'Train'
     for speaker_group in redundant:
-        if key=='Train':
-            for speaker in speaker_group:
-                condition = f"lip_{args.side}_{args.noise}_{args.sex}_0{args.age}_{speaker}_A_{args.index}"
-                dataset_path_audio = f'{wav_txt_path}/{condition}/*.wav'
-                [datasets[key][1].append(value) for value in sorted(glob.glob(dataset_path_audio))]
-            if len(datasets['Train'][1]) >= train_num:
-                key = 'Test'
-        else:        
-            for speaker in speaker_group:
-                condition = f"lip_{args.side}_{args.noise}_{args.sex}_0{args.age}_{speaker}_A_{args.index}"
-                dataset_path_audio = f'{wav_txt_path}/{condition}/*.wav'
-                for value in sorted(glob.glob(dataset_path_audio)):
-                    datasets[key][1].append(value)
-                    if key == 'Test' and len(datasets['Test'][1]) >= test_num:
-                        key = 'Valid'
+        for speaker in speaker_group:
+            condition = f"lip_{args.side}_{args.noise}_{args.sex}_0{args.age}_{speaker}_{args.angle}_{args.index}"
+            dataset_path_audio = f'{wav_txt_path}/{condition}/*.wav'
+            [datasets[key][1].append(value) for value in sorted(glob.glob(dataset_path_audio))]
+        if len(datasets['Train'][1]) >= train_num:
+            key = 'Test'
+        if key == 'Test' and len(datasets['Test'][1]) >= test_num:
+            key = 'Valid'
     
     for key in ['Train','Test','Valid']:
         for path in datasets[key][1]:

@@ -83,6 +83,6 @@ class CTCModel(EncoderDecoderModel):
                                 audio_inputs, audio_input_lengths)
         targets = F.one_hot(targets, num_classes = self.vocab_size)
         targets = self.embedder(targets.to(torch.float32))
-        outputs = self.ctcdecoder(features)
+        outputs = self.decoder(features)
         outputs = F.log_softmax(outputs, dim=-1)
         return outputs

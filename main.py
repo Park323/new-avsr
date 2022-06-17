@@ -66,9 +66,11 @@ def show_description(epoch, total_epoch, it, total_it, lr, loss, mean_loss, _tim
     print(desc, end="\r")
 
 
-def train(rank, world_size, config, vocab, dataset, port):
-
+def train(rank, world_size, config, vocab, dataset, port, test=False):
     setup(rank, world_size, port)
+    
+    save_last = test
+    scheduler = 'none' if test else 'noam'
     
     # define a loader
     sampler = DistributedCurriculumSampler(dataset, num_replicas=world_size, rank=rank, drop_last=False)
@@ -88,6 +90,7 @@ def train(rank, world_size, config, vocab, dataset, port):
     model = build_model(
         vocab_size=len(vocab),
         pad_id=vocab.pad_id,
+        architecture=config['architecture'],
         encoder_n_layer=config['encoder_n_layer'],
         encoder_d_model=config['encoder_d_model'],
         encoder_n_head=config['encoder_n_head'], 
@@ -108,7 +111,7 @@ def train(rank, world_size, config, vocab, dataset, port):
     ddp_model = DDP(model, device_ids=[rank], find_unused_parameters=True)
     
     # define a criterion
-    criterion = get_criterion(ignore_index=vocab.pad_id, blank_id=vocab.unk_id)
+    criterion = get_criterion(loss_fn=config['architecture'], ignore_index=vocab.pad_id, blank_id=vocab.unk_id)
     metric = get_metric(vocab, config['log_path'])
     
     optimizer, scheduler = get_optimizer(
@@ -116,8 +119,9 @@ def train(rank, world_size, config, vocab, dataset, port):
                              learning_rate = config['learning_rate'],
                              epochs = config['epochs'],
                              steps_per_epoch = len(dataloader),
+                             scheduler = scheduler,
                            )
-    
+
     for epoch in range(config['resume_epoch']+1, config['epochs']):
         dist.barrier()
         
@@ -145,9 +149,9 @@ def train(rank, world_size, config, vocab, dataset, port):
             
             outputs = ddp_model(vids, vid_lengths,
                                 seqs, seq_lengths,
-                                targets, target_lengths)
+                                targets[:,:-1], target_lengths) # drop eos_id
             
-            loss = criterion(outputs=outputs, targets=targets, target_lengths=target_lengths)
+            loss = criterion(outputs=outputs, targets=targets[:,1:], target_lengths=target_lengths) # drop sos_id
             loss.backward()
             optimizer.step()
             scheduler.step(epoch*len(dataloader) + it)
@@ -165,10 +169,11 @@ def train(rank, world_size, config, vocab, dataset, port):
                                  mean_loss = epoch_total_loss/(it+1), 
                                  _time = train_start)
             
-        if rank==0 and epoch%5==0:
+        if rank==0 and (not save_last or (epoch+1 == config['epochs'])):
             if not os.path.exists(config['save_dir']):
                 os.makedirs(config['save_dir'])
             save_checkpoint(model, config['save_dir'], epoch)
+        print()
         print()
         
     cleanup()
@@ -184,7 +189,7 @@ def main(args):
     # Configuration
     with open(args.config) as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
-    vocab = KsponSpeechVocabulary()
+    vocab = KsponSpeechVocabulary(unit = config['tokenize_unit'])
     
     # load dataset
     dataset = prepare_dataset(
@@ -212,7 +217,7 @@ def main(args):
     '''
     world_size = args.world_size if args.world_size else torch.cuda.device_count()
     mp.spawn(train,
-             args=(world_size, config, vocab, dataset, args.port),
+             args=(world_size, config, vocab, dataset, args.port, args.test),
              nprocs=world_size,
              join=True)
 
@@ -227,6 +232,8 @@ def get_args():
                          action = 'store_true', help='Data folder path') 
     parser.add_argument('-p','--port',
                          default = '12355', type = str, help='Port number of multi process')
+    parser.add_argument('-t','--test', action='store_true',
+                         help='Test with small samples')
     args = parser.parse_args()
     return args
   

@@ -1,13 +1,13 @@
-transcripts_path_train : "data/sample.txt"
-save_dir : 'results/trained_model/tmp2'
+transcripts_path_train : "data/sample1.txt"
+save_dir : 'results/trained_model/tmp6'
 log_path : 'logs.txt'
 
-tokenize_unit : 'grapheme'
-architecture: 'att'
-loss_fn: 'att'
+tokenize_unit : 'character'
+architecture: 'hybrid'
+loss_fn: 'hybrid'
 
 ctc_rate : 0.3
-learning_rate : 0.0001
+learning_rate : 0.00005
 epochs : 100
 batch_size : 2
 num_workers : 4

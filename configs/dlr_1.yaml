@@ -1,24 +1,24 @@
-transcripts_path_train : "data/sample.txt"
-save_dir : 'results/trained_model/tmp2'
+transcripts_path_train : "data/1_A_DLR_with_grapheme_Train.txt"
+save_dir : 'results/DLR_1'
 log_path : 'logs.txt'
 
 tokenize_unit : 'grapheme'
-architecture: 'att'
-loss_fn: 'att'
+architecture: 'hybrid'
+loss_fn: 'hybrid'
 
 ctc_rate : 0.3
 learning_rate : 0.0001
-epochs : 100
+epochs : 50
 batch_size : 2
 num_workers : 4
 resume_epoch : -1
 
-max_len : 150
+max_len : 200
 
 use_video : True
 raw_video : False
 
-audio_transform_method : 'raw'
+audio_transform_method : 'raw' 
 audio_sample_rate : 14400
 audio_n_channels : 2
 audio_n_mels : None

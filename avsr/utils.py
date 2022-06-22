@@ -39,6 +39,7 @@ def get_optimizer(
     params,
     learning_rate,
     epochs : int = None,
+    warmup : int = None,
     steps_per_epoch : int = 0,
     scheduler : str = 'noam',
 ):
@@ -46,7 +47,7 @@ def get_optimizer(
     if scheduler=='noam':
         scheduler = NoamLR(
             optimizer,
-            [float(25000/steps_per_epoch)],
+            [warmup],
             [epochs],
             [steps_per_epoch], # dataset_size / batch_size (= len(dataloader))
             [1e-10],

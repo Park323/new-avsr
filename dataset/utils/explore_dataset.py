@@ -1,5 +1,6 @@
 import re 
 import os
+import pdb
 import json
 import tqdm
 
@@ -67,35 +68,32 @@ def show_num_unique_sentences(file_name):
     print(f"Total sentences : {len(sentences['Total'])}")
 
 
-def get_file_size(path, save_path, sep='\t'):
+def get_file_size(path, save_path, limit = 4, sep = '\t'):
     import os
     
-    maximums = []
-    maximum_paths = []
-    limit = 4
+    maximums = {}
     
     with open(f'{path}') as f:
         files = f.readlines()
     
     for line in files:
-        if len(line.split(sep))==4:
-            video_path, audio_path, transcripts, kor_transcripts = line.split(sep)
+        content = line.split(sep)
+        if len(content)==4:
+            video_path, audio_path, transcripts, kor_transcripts = content 
         else:
-            video_path, audio_path, transcripts = line.split(sep)
+            video_path, audio_path, transcripts = content
         size = os.path.getsize(video_path)
-        if len(maximums)==0 or size > min(maximums):
+        minimum = min(maximums.values()) if len(maximums)!=0 else 0
+        if size > minimum:
             if len(maximums) >= limit:
-                pop_idx=maximums.index(min(maximums))
-                maximums.pop(pop_idx)
-                maximum_paths.pop(pop_idx)
-            maximums.append(size)
-            maximum_paths.append(line)
+                maximums.pop(list(maximums.keys())[-1])
+            maximums[tuple(content)] = size
+            maximums = dict(sorted(maximums.items(), key= lambda it : it[1], reverse=True))
     
     with open(f'{save_path}','w') as f:
-        for size in maximums:
+        for content, size in maximums.items():
             print(size)
-        for line in maximum_paths:
-            f.write(line)
+            f.write('\t'.join(content))
             
 if __name__=='__main__':
     show_categories_split("1_A_DLR_with_character")

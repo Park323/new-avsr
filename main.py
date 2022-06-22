@@ -91,6 +91,8 @@ def train(rank, world_size, config, vocab, dataset, port, test=False):
         vocab_size=len(vocab),
         pad_id=vocab.pad_id,
         architecture=config['architecture'],
+        loss_fn=config['loss_fn'],
+        front_dim=config['front_dim'],
         encoder_n_layer=config['encoder_n_layer'],
         encoder_d_model=config['encoder_d_model'],
         encoder_n_head=config['encoder_n_head'], 
@@ -101,6 +103,7 @@ def train(rank, world_size, config, vocab, dataset, port, test=False):
         decoder_n_head=config['decoder_n_head'], 
         decoder_ff_dim=config['decoder_ff_dim'], 
         decoder_dropout_p=config['decoder_dropout_p'],
+        rank=rank,
     )
     # move the model to GPU with id rank
     model.to(rank)
@@ -111,14 +114,16 @@ def train(rank, world_size, config, vocab, dataset, port, test=False):
     ddp_model = DDP(model, device_ids=[rank], find_unused_parameters=True)
     
     # define a criterion
-    criterion = get_criterion(loss_fn=config['architecture'], ignore_index=vocab.pad_id, blank_id=vocab.unk_id)
+    criterion = get_criterion(loss_fn=config['loss_fn'], ignore_index=vocab.pad_id, blank_id=vocab.unk_id)
     metric = get_metric(vocab, config['log_path'])
     
+    steps_per_epoch = len(dataloader)
     optimizer, scheduler = get_optimizer(
                              ddp_model.parameters(), 
                              learning_rate = config['learning_rate'],
                              epochs = config['epochs'],
-                             steps_per_epoch = len(dataloader),
+                             warmup = float(25000/steps_per_epoch),
+                             steps_per_epoch = steps_per_epoch,
                              scheduler = scheduler,
                            )
 

@@ -1,15 +1,21 @@
-transcripts_path_train : "data/1_A_PM_with_grapheme_Train.txt"
-save_dir : 'results/PM_0'
+## DLR_3
+# substitute front-end module with DLR features
+# now use linear projection between front-end & back-end
+# batch_size : 8
+# n_dim : 256
+
+transcripts_path_train : "data/1_A_DLR_with_grapheme_Train.txt"
+save_dir : 'results/DLR_3'
 log_path : 'logs.txt'
 
 tokenize_unit : 'grapheme'
-architecture: 'hybrid'
+architecture: 'audio_visual'
 loss_fn: 'hybrid'
 
 ctc_rate : 0.1
 learning_rate : 0.0001
 epochs : 50
-batch_size : 2
+batch_size : 4
 num_workers : 4
 resume_epoch : -1
 
@@ -36,14 +42,19 @@ time_mask_num : None
 noise_augment : False
 noise_path : None
 
+#Encoder
+# front-end
+front_dim : 512
+# back-end
 encoder_n_layer : 12
-encoder_d_model: 512
+encoder_d_model: 256
 encoder_n_head: 8
 encoder_ff_dim: 2048
 encoder_dropout_p: 0.1
 
+#Decoder
 decoder_n_layer : 6
-decoder_d_model: 512
+decoder_d_model: 256
 decoder_n_head: 8
 decoder_ff_dim: 2048
 decoder_dropout_p: 0.1

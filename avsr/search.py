@@ -71,7 +71,6 @@ def hybridSearch(
                                     blank_id=blank_id,
                                     last_score=last_score)
             ctc_scores[token_id] = a_ctc
-        print(ctc_scores[2], att_scores[-1,2])
         scores = ctc_rate * ctc_scores + (1-ctc_rate) * att_scores[-1] 
         y_hat = np.argmax(scores)
         

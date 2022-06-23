@@ -46,6 +46,8 @@ def infer(config, vocab, dataset, device='cpu'):
         vocab_size=len(vocab),
         pad_id=vocab.pad_id,
         architecture=config['architecture'],
+        loss_fn=config['loss_fn'],
+        front_dim=config['front_dim'],
         encoder_n_layer=config['encoder_n_layer'],
         encoder_d_model=config['encoder_d_model'],
         encoder_n_head=config['encoder_n_head'], 
@@ -64,7 +66,7 @@ def infer(config, vocab, dataset, device='cpu'):
     model.to(device)
     
     # define a criterion
-    criterion = get_criterion(loss_fn=config['architecture'], ignore_index=vocab.pad_id, blank_id=vocab.unk_id)
+    criterion = get_criterion(loss_fn=config['loss_fn'], ignore_index=vocab.pad_id, blank_id=vocab.unk_id)
     metric_ger = get_metric(vocab, config['log_path'], unit=config['tokenize_unit'], error_type='ger')
     metric_cer = get_metric(vocab, config['log_path'], unit=config['tokenize_unit'], error_type='cer')
     metric_wer = get_metric(vocab, config['log_path'], unit=config['tokenize_unit'], error_type='wer')

@@ -1,5 +1,4 @@
 import os
-import gc
 import pdb
 import time
 import yaml
@@ -131,7 +130,7 @@ def train(rank, world_size, config, vocab, dataset, port, test=False):
     for epoch in range(config['resume_epoch']+1, config['epochs']):
         dist.barrier()
         
-        sampler.set_epoch(0)
+        sampler.set_epoch(epoch)
         
         ddp_model.train()
         train_start = time.time()

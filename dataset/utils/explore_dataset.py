@@ -82,7 +82,7 @@ def get_file_size(path, save_path, limit = 4, sep = '\t'):
             video_path, audio_path, transcripts, kor_transcripts = content 
         else:
             video_path, audio_path, transcripts = content
-        size = os.path.getsize(video_path)
+        size = os.path.getsize(video_path) + os.path.getsize(audio_path)
         minimum = min(maximums.values()) if len(maximums)!=0 else 0
         if size > minimum:
             if len(maximums) >= limit:

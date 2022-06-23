@@ -1,21 +1,21 @@
-## DLR_3
+## DLR_4
 # substitute front-end module with DLR features
-# now use linear projection between front-end & back-end
-# batch_size : 3
+# check Audio-only
+# batch_size : 5
 # n_dim : 256
 
 transcripts_path_train : "data/1_A_DLR_with_grapheme_Train.txt"
-save_dir : 'results/DLR_3'
+save_dir : 'results/DLR_4'
 log_path : 'logs.txt'
 
 tokenize_unit : 'grapheme'
-architecture: 'audio_visual'
+architecture: 'audio'
 loss_fn: 'hybrid'
 
 ctc_rate : 0.1
 learning_rate : 0.0001
 epochs : 50
-batch_size : 3
+batch_size : 5
 num_workers : 4
 resume_epoch : -1
 

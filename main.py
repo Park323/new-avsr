@@ -1,4 +1,5 @@
 import os
+import gc
 import pdb
 import time
 import yaml
@@ -130,13 +131,12 @@ def train(rank, world_size, config, vocab, dataset, port, test=False):
     for epoch in range(config['resume_epoch']+1, config['epochs']):
         dist.barrier()
         
-        sampler.set_epoch(epoch)
+        sampler.set_epoch(0)
         
         ddp_model.train()
         train_start = time.time()
         epoch_total_loss = 0
         for it, (vids, seqs, targets, vid_lengths, seq_lengths, target_lengths) in enumerate(dataloader):
-            
             vids = vids.to(rank)
             seqs = seqs.to(rank)
             targets = targets.to(rank)
@@ -144,25 +144,25 @@ def train(rank, world_size, config, vocab, dataset, port, test=False):
             
             """
             Check input sizes
+            
             print()
             print(vids.size())
             print(seqs.size())
-            continue
             """
-                     
+            
             optimizer.zero_grad()
             
             outputs = ddp_model(vids, vid_lengths,
                                 seqs, seq_lengths,
                                 targets[:,:-1], target_lengths) # drop eos_id
-            
+                                
             loss = criterion(outputs=outputs, targets=targets[:,1:], target_lengths=target_lengths) # drop sos_id
             loss.backward()
             optimizer.step()
             scheduler.step(epoch*len(dataloader) + it)
             
             epoch_total_loss += loss.item()
-            
+
             if rank == 0:
                 # show description
                 show_description(epoch=epoch, 

@@ -1,4 +1,5 @@
 import os
+import pdb
 import json
 import tqdm
 
@@ -13,10 +14,11 @@ for fp in tqdm.tqdm(files):
     assert len(labels)==1, f"{fp} has {len(labels)} labels"
     if labels[0]['Video_info']['video_Name'].split('_')[6]=='A':
         for i, label in enumerate(labels[0]['Sentence_info']):
-            if sentence_info.get(label['sentence_text']):
-                sentence_info[label['sentence_text']].append((labels[0]['Video_info']['video_Name'], label['ID']))
+            sentence = label['sentence_text'].replace('.','').replace(' ','').strip()
+            if sentence_info.get(sentence):
+                sentence_info[sentence].append((labels[0]['Video_info']['video_Name'], label['ID']))
             else:
-                sentence_info[label['sentence_text']] = [(labels[0]['Video_info']['video_Name'], label['ID'])]
+                sentence_info[sentence] = [(labels[0]['Video_info']['video_Name'], label['ID'])]
 
-with open('checked_redundant_log.json', 'w') as f:
+with open('checked_redundant_log_2.json', 'w') as f:
     json.dump(sentence_info, f, ensure_ascii=False) 

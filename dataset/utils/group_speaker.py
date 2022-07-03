@@ -6,7 +6,7 @@ import pickle
 speaker_group = []
 used = set()
 
-with open('data/checked_redundant_log.json', 'r', encoding='utf-8') as f:
+with open('data/checked_redundant_log_2.json', 'r', encoding='utf-8') as f:
     logs = json.load(f)
 
 for sen, group in tqdm.tqdm(logs.items()):
@@ -25,5 +25,5 @@ for sen, group in tqdm.tqdm(logs.items()):
             speaker_group[idx].add(speaker)
             used.add(speaker)
                     
-with open('data/redundant_speaker_group.pkl', 'wb') as f:
+with open('data/redundant_speaker_group_2.pkl', 'wb') as f:
     pickle.dump(speaker_group, f)

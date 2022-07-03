@@ -26,7 +26,7 @@ def preprocess(args):
     print('preprocess started..')
     
     # call redundanct speakers
-    with open('data/redundant_speaker_group.pkl', 'rb') as f:
+    with open('data/redundant_speaker_group_2.pkl', 'rb') as f:
         redundant = pickle.load(f)
     
     total_paths = []
@@ -38,8 +38,8 @@ def preprocess(args):
             dataset_path = f'{file_path}/*/*/*/{condition}.mp4'
             redun = glob.glob(dataset_path)
             length += len(redun)
-            total_paths = total_paths + redun   
-        redun_lengths.append(length) 
+            total_paths = total_paths + redun
+        redun_lengths.append(length)
     
     print("========= redundant speaker group =========")
     for i, redun in enumerate(redundant):

@@ -120,7 +120,8 @@ def generate_script_from_path(path, unit='character'):
         
     char2id, id2char = load_label(f"./avsr/vocabulary/kor_{unit}.csv")
     
-    with open(path.replace('.txt',f'_with_{unit}.txt'), 'w') as f:
+    save_path = path.replace('.txt',f'_with_{unit}.txt')
+    with open(save_path, 'w') as f:
         for _paths in paths:
             units = _paths.strip('\n').split('\t')
             if len(units)!=3:
@@ -133,6 +134,8 @@ def generate_script_from_path(path, unit='character'):
             transcript = re.sub('[%]','퍼센트',transcript) # % : percent
             transcript = re.sub('\d+', lambda x: num2kor(x.group(0)), transcript) # number
             unzip_groups(f, char2id, unit, video_path, audio_path, transcript) # (아기씨)/(애기씨) (안돼써)(안됐어) (그런)게/(그러)게
+            
+    return save_path
 
 
 def preprocess(args):

@@ -66,7 +66,7 @@ def show_description(epoch, total_epoch, it, total_it, lr, loss, mean_loss, _tim
     print(desc, end="\r")
 
 
-def train(rank, world_size, config, vocab, dataset, port, test=False):
+def train(rank, world_size, config, vocab, dataset, port, normalized_batch_size=8, test=False):
     setup(rank, world_size, port)
     
     save_last = test
@@ -121,8 +121,10 @@ def train(rank, world_size, config, vocab, dataset, port, test=False):
     optimizer, scheduler = get_optimizer(
                              ddp_model.parameters(), 
                              learning_rate = config['learning_rate'],
+                             init_lr = config['init_lr'],
+                             final_lr = config['final_lr'],
                              epochs = config['epochs'],
-                             warmup = float(25000/steps_per_epoch),
+                             warmup = 5,
                              steps_per_epoch = steps_per_epoch,
                              scheduler = scheduler,
                            )
@@ -130,6 +132,7 @@ def train(rank, world_size, config, vocab, dataset, port, test=False):
     for epoch in range(config['resume_epoch']+1, config['epochs']):
         dist.barrier()
         
+        ## Very Very Important
         sampler.set_epoch(epoch)
         
         ddp_model.train()
@@ -158,7 +161,8 @@ def train(rank, world_size, config, vocab, dataset, port, test=False):
             loss = criterion(outputs=outputs, targets=targets[:,1:], target_lengths=target_lengths) # drop sos_id
             loss.backward()
             optimizer.step()
-            scheduler.step(epoch*len(dataloader) + it)
+            
+            scheduler.step(epoch*steps_per_epoch + it)
             
             epoch_total_loss += loss.item()
 
@@ -173,12 +177,13 @@ def train(rank, world_size, config, vocab, dataset, port, test=False):
                                  mean_loss = epoch_total_loss/(it+1), 
                                  _time = train_start)
             
-        if rank==0 and (not save_last or (epoch+1 == config['epochs'])):
-            if not os.path.exists(config['save_dir']):
-                os.makedirs(config['save_dir'])
-            save_checkpoint(model, config['save_dir'], epoch)
-        print()
-        print()
+        if rank==0:
+            if not save_last or (epoch+1 == config['epochs']):
+                if not os.path.exists(config['save_dir']):
+                    os.makedirs(config['save_dir'])
+                save_checkpoint(model, config['save_dir'], epoch)
+            print()
+            print()
         
     cleanup()
 
@@ -221,7 +226,7 @@ def main(args):
     '''
     world_size = args.world_size if args.world_size else torch.cuda.device_count()
     mp.spawn(train,
-             args=(world_size, config, vocab, dataset, args.port, args.test),
+             args=(world_size, config, vocab, dataset, args.port, 8*4, args.test),
              nprocs=world_size,
              join=True)
 

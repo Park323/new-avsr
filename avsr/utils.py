@@ -41,6 +41,8 @@ def get_optimizer(
     epochs : int = None,
     warmup : int = None,
     steps_per_epoch : int = 0,
+    init_lr : float = None,
+    final_lr : float = None,
     scheduler : str = 'noam',
 ):
     optimizer = Adam(params, learning_rate)
@@ -50,9 +52,9 @@ def get_optimizer(
             [warmup],
             [epochs],
             [steps_per_epoch], # dataset_size / batch_size (= len(dataloader))
-            [1e-10],
+            [init_lr],
             [learning_rate],
-            [1e-10]
+            [final_lr],
         ) 
     else:
         scheduler = Unscheduler(learning_rate)

@@ -26,7 +26,7 @@ Audio-Visual Speech Recognition with Conformer
 
 | Model         | # of params |  Type   | # of layers | # of heads | ffn_dim | hidden_dims |
 | ------------- | :---------: | :-----: | ----------: | ---------: | ------: | ----------: |
-| `AVSR-base`   |    260M     | None    |      12 + 6 |         8  |    2048 |         512 |
+| `AVSR-base`   |    77M     | None    |      12 + 6 |         8  |    2048 |         256 |
 
 ```python
 

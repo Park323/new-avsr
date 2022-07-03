@@ -1,0 +1,47 @@
+## Video-only Inference configuration
+# substitute front-end module with DLR features
+
+transcripts_path_test : "data/1_A_DLR_with_grapheme_Test.txt"
+model_path : 'results/DLR_7/00049.pt'
+log_path : 'inference_results_DLR7.txt'
+
+num_workers : 4
+
+search_method : 'hybrid'
+
+tokenize_unit : 'grapheme'
+architecture: 'video'
+loss_fn: 'hybrid'
+ctc_rate : 0.1
+
+max_len : 200
+
+use_video : True
+raw_video : False
+
+audio_transform_method : 'raw' 
+audio_sample_rate : 14400
+audio_n_channels : 2
+audio_n_mels : None
+audio_fram_length : None
+audio_fram_shift : None
+audio_normalize : True
+
+video_n_channels : 3
+
+#Encoder
+# front-end
+front_dim : 512
+# back-end
+encoder_n_layer : 12
+encoder_d_model: 256
+encoder_n_head: 8
+encoder_ff_dim: 2048
+encoder_dropout_p: 0.1
+
+#Decoder
+decoder_n_layer : 6
+decoder_d_model: 256
+decoder_n_head: 8
+decoder_ff_dim: 2048
+decoder_dropout_p: 0.1

@@ -9,7 +9,7 @@ from avsr.models.model import *
 from avsr.models.encoder import *
 from avsr.models.decoder import *
 
-EPSILON = 1e-100
+EPSILON = 1e-200
 
 
 def hybridSearch(
@@ -54,6 +54,7 @@ def hybridSearch(
         att_scores = att_scores[0].cpu().numpy()
         
         ctc_scores = np.full((vocab_size), -np.inf)
+        print(f"For index {idx}")
         for token_id in range(vocab_size):
             if token_id == sos_id:
                 continue
@@ -68,9 +69,10 @@ def hybridSearch(
                                     max_len=max_len, 
                                     sos_id=sos_id, 
                                     eos_id=eos_id, 
-                                    blank_id=blank_id,
-                                    last_score=last_score)
+                                    blank_id=blank_id,)
+                                    #last_score=last_score)
             ctc_scores[token_id] = a_ctc
+            print(f"for token {token_id}, CTC : {a_ctc}, ATT : {att_scores[-1][token_id]}")
         scores = ctc_rate * ctc_scores + (1-ctc_rate) * att_scores[-1] 
         y_hat = np.argmax(scores)
         
@@ -78,9 +80,9 @@ def hybridSearch(
             break
         y_hats[0,idx] = y_hat
         
-        # score vanishing because of the large vocab size
-        # so revise it by multiplying last score
-        last_score += ctc_scores[y_hat]
+        ## score vanishing because of the large vocab size
+        ## so revise it by multiplying last score
+        #last_score += ctc_scores[y_hat]
     
     return y_hats[:,1:idx]
 
@@ -189,13 +191,12 @@ def ctcSearch(
 def ctc_label_score(g, c, X, T, y_n, y_b, max_len=150, sos_id=None, eos_id=None, blank_id=None, last_score=None):
     g = tuple(g)
     h = tuple([*g, c])
-    
     if c == eos_id:
         score = y_n[T][g] + y_b[T][g]
-        # score vanishing because of the large vocab size
-        # so revise it by multiplying last score
-        if last_score:
-            score /= np.exp(last_score)
+        ## score vanishing because of the large vocab size
+        ## so revise it by multiplying last score
+        #if last_score:
+        #    score /= (np.exp(last_score) + EPSILON)
         return np.log(score + EPSILON)
     else:
         y_n[1][h] = X[1][c] if g==(sos_id,) else 0
@@ -208,6 +209,6 @@ def ctc_label_score(g, c, X, T, y_n, y_b, max_len=150, sos_id=None, eos_id=None,
             psi += phi*X[t][c]
         #pdb.set_trace()
         score = psi
-        if last_score:
-            score /= np.exp(last_score)
+        #if last_score:
+        #    score /= (np.exp(last_score) + EPSILON)
         return np.log(score + EPSILON)

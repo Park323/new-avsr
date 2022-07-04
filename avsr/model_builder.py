@@ -26,12 +26,12 @@ def build_model(
     decoder_n_head=None, 
     decoder_ff_dim=None, 
     decoder_dropout_p=None,
-    rank = 0,
+    verbose = True,
 ):
     if architecture=='default': architecture = 'audio_visual'
     if loss_fn=='default': architecture = 'hybrid'
     
-    if rank==0 or rank is None:
+    if verbose:
         print(f"Build {loss_fn} {architecture} model...")
     
     
@@ -100,7 +100,7 @@ def build_model(
             decoder_d_model=decoder_d_model,
         )
         
-    if rank==0 or rank is None:
+    if verbose:
         print("Build complete.")
         print(f"# of total parameters : {count_parameters(model)}")
 

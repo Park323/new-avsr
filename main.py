@@ -62,7 +62,7 @@ def show_description(epoch, total_epoch, it, total_it, lr, loss, mean_loss, _tim
     train_time //= 60
     _hour = train_time % 24
     _day = train_time // 24
-    desc = f"LOSS {loss:.4f} :: MEAN LOSS {mean_loss:.2f} :: LEARNING_RATE {lr:.8f} :: BATCH [{it}/{total_it}] :: EPOCH [{epoch}/{total_epoch}] :: [{_day:2d}d {_hour:2d}h {_min:2d}m {_sec:2d}s]"
+    desc = f"LOSS {loss:.4f} :: MEAN LOSS {mean_loss:.4f} :: LEARNING_RATE {lr:.8f} :: BATCH [{it}/{total_it}] :: EPOCH [{epoch}/{total_epoch}] :: [{_day:2d}d {_hour:2d}h {_min:2d}m {_sec:2d}s]"
     print(desc, end="\r")
 
 
@@ -103,7 +103,7 @@ def train(rank, world_size, config, vocab, dataset, port, normalized_batch_size=
         decoder_n_head=config['decoder_n_head'], 
         decoder_ff_dim=config['decoder_ff_dim'], 
         decoder_dropout_p=config['decoder_dropout_p'],
-        rank=rank,
+        verbose=rank==0,
     )
     # move the model to GPU with id rank
     model.to(rank)

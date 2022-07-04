@@ -100,13 +100,13 @@ def num2kor(num):
     
         
 def unzip_groups(f, char2id, unit, video_path, audio_path, transcript):
+    # Use front group which is not grammatically correct
     #pdb.set_trace()
-    pattern = '(\(([^(/)]+)\)([^(/)]*))\/?(\(([^(/)]+)\)(\3)?)'
+    pattern = '(\(([^(/)]+)\)?([^(/)]*))\/?(\(?([^(/)]+)\)(\3)?)'
     if re.search(pattern, transcript):
-        for group_num in [1,4]:
-            _transcript = re.sub(pattern, f"\{group_num}", transcript)
-            _transcript = re.sub('[(/)]', "", _transcript)
-            unzip_groups(f, char2id, unit, video_path, audio_path, _transcript)
+        _transcript = re.sub(pattern, f"\{1}", transcript)
+        _transcript = re.sub('[(/)]', "", _transcript)
+        unzip_groups(f, char2id, unit, video_path, audio_path, _transcript)
     else:
         char_id_transcript = sentence_to_target(transcript, char2id, unit)
         f.write(f'{video_path}\t{audio_path}\t{transcript}\t{char_id_transcript}\n')

@@ -6,12 +6,19 @@ import argparse
 
 import torch
 import torch.nn as nn
+import torch.distributed as dist
+import torch.multiprocessing as mp
 from torch.utils.data import DataLoader
+from torch.nn.parallel import DistributedDataParallel as DDP
 
 from avsr.model_builder import build_model
 from avsr.utils import get_criterion, get_optimizer, get_metric, select_search
 from avsr.vocabulary.vocabulary import KsponSpeechVocabulary
 from dataset.dataset import load_dataset, prepare_dataset, AVcollator
+from dataset.sampler import DistributedCurriculumSampler
+
+
+mp = mp.get_context('spawn')
 
 
 def show_description(it, total_it, ger, mean_ger, cer, mean_cer, wer, mean_wer, _time):
@@ -31,39 +38,20 @@ def load_checkpoint(model, checkpoint_path, device='cpu'):
     model.load_state_dict(state_dict, strict=True)
     
 
-def infer(config, vocab, dataset, device='cpu'):
-        
+def infer(rank, world_size, config, model, vocab, dataset, scores, device='cpu', port=12345):
+    
+    # define a loader
+    sampler = DistributedCurriculumSampler(dataset, num_replicas=world_size, rank=rank, drop_last=False)
+    
     dataloader = DataLoader(dataset=dataset, batch_size=1,
                             collate_fn = AVcollator(
                                 max_len = config['max_len'],
                                 use_video = config['use_video'],
-                                raw_video = config['raw_video'],), 
+                                raw_video = config['raw_video'],
+                            ), 
                             shuffle = False,
+                            sampler = sampler,
                             num_workers=config['num_workers'])
-    
-    # define a model
-    model = build_model(
-        vocab_size=len(vocab),
-        pad_id=vocab.pad_id,
-        architecture=config['architecture'],
-        loss_fn=config['loss_fn'],
-        front_dim=config['front_dim'],
-        encoder_n_layer=config['encoder_n_layer'],
-        encoder_d_model=config['encoder_d_model'],
-        encoder_n_head=config['encoder_n_head'], 
-        encoder_ff_dim=config['encoder_ff_dim'], 
-        encoder_dropout_p=config['encoder_dropout_p'],
-        decoder_n_layer=config['decoder_n_layer'],
-        decoder_d_model=config['decoder_d_model'],
-        decoder_n_head=config['decoder_n_head'], 
-        decoder_ff_dim=config['decoder_ff_dim'], 
-        decoder_dropout_p=config['decoder_dropout_p'],
-    )
-    
-    # load state dict
-    load_checkpoint(model, checkpoint_path=config['model_path'], device=device)
-    # move the model to GPU
-    model.to(device)
     
     # define a criterion
     criterion = get_criterion(loss_fn=config['loss_fn'], ignore_index=vocab.pad_id, blank_id=vocab.unk_id)
@@ -103,21 +91,22 @@ def infer(config, vocab, dataset, device='cpu'):
         cer = metric_cer(outputs=outputs, targets=targets[:,1:], output_lengths=output_lengths, target_lengths=target_lengths)
         wer = metric_wer(outputs=outputs, targets=targets[:,1:], output_lengths=output_lengths, target_lengths=target_lengths)
         
-        total_ger  += ger
-        total_cer  += cer
-        total_wer  += wer
+        scores += torch.tensor([1, ger, cer, wer])
         
-        # show description
-        show_description(it = it,
-                         total_it = len(dataloader), 
-                         ger = ger,
-                         mean_ger = total_ger/(it+1),
-                         cer = cer,
-                         mean_cer = total_cer/(it+1),
-                         wer = wer,
-                         mean_wer = total_wer/(it+1),
-                         _time = eval_start)
+        if rank==0:
+            # show description
+            show_description(it = it,
+                             total_it = len(dataloader), 
+                             ger = ger,
+                             mean_ger = scores[1]/scores[0],
+                             cer = cer,
+                             mean_cer = scores[2]/scores[0],
+                             wer = wer,
+                             mean_wer = scores[3]/scores[0],
+                             _time = eval_start)
     print()
+    
+    cleanup()
 
 
 def main(args):
@@ -145,19 +134,53 @@ def main(args):
     )
     print(f"# of data : {len(dataset)}")
     
-    infer(config, vocab, dataset, device=DEVICE)
+    # Single inference
+    # infer(config, vocab, dataset, device=DEVICE)
     
-#    DDP inference
-#    '''
-#    spawn nprocs processes that run fn with args
-#    process index passed to fn
-#    ex) below function spawn demo_fn(i, world_size) for i in range(world_size)
-#    '''
-#    world_size = args.world_size if args.world_size else torch.cuda.device_count()
-#    mp.spawn(train,
-#             args=(world_size, config, vocab, dataset, args.port),
-#             nprocs=world_size,
-#             join=True)
+    # DDP inference
+    '''
+    spawn nprocs processes that run fn with args
+    process index passed to fn
+    ex) below function spawn demo_fn(i, world_size) for i in range(world_size)
+    '''
+    world_size = config['num_mp']
+    processes = []
+    scores = torch.tensor([0.,0.,0.,0.])
+    scores.share_memory_()
+    
+    for i in range(world_size):
+        # define a model
+        model = build_model(
+            vocab_size=len(vocab),
+            pad_id=vocab.pad_id,
+            architecture=config['architecture'],
+            loss_fn=config['loss_fn'],
+            front_dim=config['front_dim'],
+            encoder_n_layer=config['encoder_n_layer'],
+            encoder_d_model=config['encoder_d_model'],
+            encoder_n_head=config['encoder_n_head'], 
+            encoder_ff_dim=config['encoder_ff_dim'], 
+            encoder_dropout_p=config['encoder_dropout_p'],
+            decoder_n_layer=config['decoder_n_layer'],
+            decoder_d_model=config['decoder_d_model'],
+            decoder_n_head=config['decoder_n_head'], 
+            decoder_ff_dim=config['decoder_ff_dim'], 
+            decoder_dropout_p=config['decoder_dropout_p'],
+            verbose= i==0,
+        )
+        
+        # load state dict
+        load_checkpoint(model, checkpoint_path=config['model_path'], device=DEVICE)
+        # move the model to GPU
+        model.to(DEVICE)
+        
+        process = mp.Process(target=infer,
+                             args=(i, world_size, config, model, vocab, dataset, scores, DEVICE, args.port),)
+        process.start()
+        processes.append(process)
+        
+    for process in processes:
+        process.join()
 
 
 def get_args():

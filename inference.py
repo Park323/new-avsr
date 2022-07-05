@@ -29,7 +29,7 @@ def show_description(it, total_it, ger, mean_ger, cer, mean_cer, wer, mean_wer, 
     train_time //= 60
     _hour = train_time % 24
     _day = train_time // 24
-    desc = f"GER {ger:.4f} :: MEAN GER {ger:.2f} :: CER {cer:.4f} :: MEAN CER {mean_cer:.2f} :: WER {wer:.4f} :: MEAN WER {mean_wer:.2f} :: BATCH [{it}/{total_it}] :: [{_day:2d}d {_hour:2d}h {_min:2d}m {_sec:2d}s]"
+    desc = f"GER {ger:.4f} :: MEAN GER {ger:.4f} :: CER {cer:.4f} :: MEAN CER {mean_cer:.4f} :: WER {wer:.4f} :: MEAN WER {mean_wer:.4f} :: BATCH [{it}/{total_it}] :: [{_day:2d}d {_hour:2d}h {_min:2d}m {_sec:2d}s]"
     print(desc, end="\r")
 
 
@@ -78,6 +78,7 @@ def infer(rank, world_size, config, model, vocab, dataset, scores, device='cpu',
                 seqs, seq_lengths,
                 max_len=config['max_len'],
                 vocab_size=len(vocab),
+                beam_size = config['beam_size'],
                 pad_id=vocab.pad_id,
                 sos_id=vocab.sos_id,
                 eos_id=vocab.eos_id,
@@ -95,8 +96,8 @@ def infer(rank, world_size, config, model, vocab, dataset, scores, device='cpu',
         
         if rank==0:
             # show description
-            show_description(it = it,
-                             total_it = len(dataloader), 
+            show_description(it = int(scores[0].item()),
+                             total_it = len(dataset), 
                              ger = ger,
                              mean_ger = scores[1]/scores[0],
                              cer = cer,
@@ -105,8 +106,6 @@ def infer(rank, world_size, config, model, vocab, dataset, scores, device='cpu',
                              mean_wer = scores[3]/scores[0],
                              _time = eval_start)
     print()
-    
-    cleanup()
 
 
 def main(args):

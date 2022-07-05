@@ -66,7 +66,7 @@ def show_description(epoch, total_epoch, it, total_it, lr, loss, mean_loss, _tim
     print(desc, end="\r")
 
 
-def train(rank, world_size, config, vocab, dataset, port, normalized_batch_size=8, test=False):
+def train(rank, world_size, config, vocab, dataset, port, test=False):
     setup(rank, world_size, port)
     
     save_last = test
@@ -226,7 +226,7 @@ def main(args):
     '''
     world_size = args.world_size if args.world_size else torch.cuda.device_count()
     mp.spawn(train,
-             args=(world_size, config, vocab, dataset, args.port, 8*4, args.test),
+             args=(world_size, config, vocab, dataset, args.port, args.test),
              nprocs=world_size,
              join=True)
 

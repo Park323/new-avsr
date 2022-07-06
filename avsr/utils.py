@@ -2,8 +2,7 @@ from torch.optim import Adam
 
 from avsr.loss import *
 from avsr.metric import Metric
-from avsr.scheduler.noam import NoamLR
-from avsr.scheduler.none import Unscheduler
+from avsr.scheduler.schedulers import *
 from avsr.search import *
 
 def get_criterion(
@@ -38,26 +37,27 @@ def get_metric(vocab, log_path, unit:str='character', error_type:str='cer'):
 def get_optimizer(
     params,
     learning_rate,
+    scheduler : str = 'noam',
     epochs : int = None,
     warmup : int = None,
     steps_per_epoch : int = 0,
     init_lr : float = None,
     final_lr : float = None,
-    scheduler : str = 'noam',
+    gamma : float = 0.1,
 ):
     optimizer = Adam(params, learning_rate)
-    if scheduler=='noam':
-        scheduler = NoamLR(
-            optimizer,
-            [warmup],
-            [epochs],
-            [steps_per_epoch], # dataset_size / batch_size (= len(dataloader))
-            [init_lr],
-            [learning_rate],
-            [final_lr],
-        ) 
-    else:
-        scheduler = Unscheduler(learning_rate)
+    
+    scheduler = Scheduler(
+        method = scheduler,
+        optimizer = optimizer,
+        lr = learning_rate,
+        init_lr = init_lr,
+        final_lr = final_lr,
+        gamma = gamma,
+        epochs = epochs,
+        warmup = warmup,
+        steps_per_epoch = steps_per_epoch,
+    )
     return optimizer, scheduler
     
 def select_search(method='default'):

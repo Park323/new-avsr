@@ -39,10 +39,12 @@ def load_checkpoint(model, checkpoint_path, device='cpu'):
     
 
 def infer(rank, world_size, config, model, vocab, dataset, scores, device='cpu', port=12345):
-    
-    # define a loader
-    sampler = DistributedCurriculumSampler(dataset, num_replicas=world_size, rank=rank, drop_last=False)
-    
+    if world_size > 1:
+        # define a loader
+        sampler = DistributedCurriculumSampler(dataset, num_replicas=world_size, rank=rank, drop_last=False)
+    else:
+        sampler = None
+            
     dataloader = DataLoader(dataset=dataset, batch_size=1,
                             collate_fn = AVcollator(
                                 max_len = config['max_len'],
@@ -105,7 +107,6 @@ def infer(rank, world_size, config, model, vocab, dataset, scores, device='cpu',
                              wer = wer,
                              mean_wer = scores[3]/scores[0],
                              _time = eval_start)
-    print()
 
 
 def main(args):
@@ -133,8 +134,8 @@ def main(args):
     )
     print(f"# of data : {len(dataset)}")
     
-    # Single inference
-    # infer(config, vocab, dataset, device=DEVICE)
+    # Assertion
+    assert config['num_mp'] <= len(dataset), "num_mp should be equal or smaller than size of dataset!!"
     
     # DDP inference
     '''
@@ -144,9 +145,9 @@ def main(args):
     '''
     world_size = config['num_mp']
     processes = []
+    
     scores = torch.tensor([0.,0.,0.,0.])
     scores.share_memory_()
-    
     for i in range(world_size):
         # define a model
         model = build_model(
@@ -167,19 +168,29 @@ def main(args):
             decoder_dropout_p=config['decoder_dropout_p'],
             verbose= i==0,
         )
-        
         # load state dict
         load_checkpoint(model, checkpoint_path=config['model_path'], device=DEVICE)
         # move the model to GPU
         model.to(DEVICE)
         
-        process = mp.Process(target=infer,
-                             args=(i, world_size, config, model, vocab, dataset, scores, DEVICE, args.port),)
-        process.start()
-        processes.append(process)
+        if world_size > 1:
+            process = mp.Process(target=infer,
+                                 args=(i, world_size, config, model, vocab, dataset, scores, DEVICE, args.port),)
+            process.start()
+            processes.append(process)
+        else:
+            infer(i, world_size, config, model, vocab, dataset, scores, DEVICE, args.port)
         
-    for process in processes:
-        process.join()
+    if world_size > 1:
+        for process in processes:
+            process.join()
+    
+    print()
+    print()
+    print(f"[Results]")
+    print(f"Grapheme Error Rate  : {100*scores[1]/scores[0]:.2f}%")
+    print(f"Character Error Rate : {100*scores[2]/scores[0]:.2f}%")
+    print(f"Word Error Rate      : {100*scores[3]/scores[0]:.2f}%")
 
 
 def get_args():

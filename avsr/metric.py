@@ -67,9 +67,7 @@ class ErrorRate(object):
     def __call__(self, targets, y_hats, show=False):
         """ Calculating character error rate """
         dist, length = self._get_distance(targets, y_hats, show=show)
-        self.total_dist += dist
-        self.total_length += length
-        return self.total_dist / self.total_length
+        return dist/length
 
     def _get_distance(self, targets, y_hats, show=False):
         """

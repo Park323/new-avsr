@@ -29,7 +29,7 @@ def show_description(it, total_it, ger, mean_ger, cer, mean_cer, wer, mean_wer, 
     train_time //= 60
     _hour = train_time % 24
     _day = train_time // 24
-    desc = f"GER {ger:.4f} :: MEAN GER {ger:.4f} :: CER {cer:.4f} :: MEAN CER {mean_cer:.4f} :: WER {wer:.4f} :: MEAN WER {mean_wer:.4f} :: BATCH [{it}/{total_it}] :: [{_day:2d}d {_hour:2d}h {_min:2d}m {_sec:2d}s]"
+    desc = f"GER {ger:.4f} :: MEAN GER {mean_ger:.4f} :: CER {cer:.4f} :: MEAN CER {mean_cer:.4f} :: WER {wer:.4f} :: MEAN WER {mean_wer:.4f} :: BATCH [{it}/{total_it}] :: [{_day:2d}d {_hour:2d}h {_min:2d}m {_sec:2d}s]"
     print(desc, end="\r")
 
 

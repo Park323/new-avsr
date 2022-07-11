@@ -4,11 +4,15 @@ import csv
 import sys
 import math
 import random
+import platform
 import warnings
 
 import torch
 import torchaudio
-torchaudio.set_audio_backend("sox_io")
+if platform.system() == 'Windows':
+    torchaudio.set_audio_backend("soundfile")
+elif platform.system() == 'Linux':
+    torchaudio.set_audio_backend("sox_io")
 from torch import Tensor, FloatTensor
 from torch.utils.data import Dataset
 
@@ -33,7 +37,7 @@ def load_dataset(transcripts_path):
     korean_transcripts = list()
     transcripts = list()
 
-    with open(transcripts_path) as f:
+    with open(transcripts_path, encoding='utf-8') as f:
         for idx, line in enumerate(f.readlines()):
             # pdb.set_trace()
             video_path, audio_path, korean_transcript, transcript = line.split('\t')

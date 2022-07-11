@@ -16,7 +16,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 
 from avsr.model_builder import build_model
 from avsr.vocabulary.vocabulary import KsponSpeechVocabulary
-from avsr.utils import get_criterion, get_optimizer, get_metric
+from avsr.utils import get_criterion, get_optimizer
 from dataset.dataset import load_dataset, prepare_dataset, AVcollator
 from dataset.sampler import DistributedCurriculumSampler
 
@@ -36,7 +36,10 @@ def setup(rank, world_size, port):
     NCCL -> GPU training / Gloo -> CPU training
     check table here : https://pytorch.org/docs/stable/distributed.html
     '''
-    dist.init_process_group("nccl", rank=rank, world_size=world_size)
+    
+    import platform
+    backend = 'gloo' if platform.system() == 'Windows' else 'nccl'
+    dist.init_process_group(backend, rank=rank, world_size=world_size)
 
     
 def cleanup():
@@ -70,7 +73,6 @@ def train(rank, world_size, config, vocab, dataset, port, test=False):
     setup(rank, world_size, port)
     
     save_last = test
-    scheduler = 'none' if test else 'noam'
     
     # define a loader
     sampler = DistributedCurriculumSampler(dataset, num_replicas=world_size, rank=rank, drop_last=False)
@@ -115,7 +117,6 @@ def train(rank, world_size, config, vocab, dataset, port, test=False):
     
     # define a criterion
     criterion = get_criterion(loss_fn=config['loss_fn'], ignore_index=vocab.pad_id, blank_id=vocab.unk_id)
-    metric = get_metric(vocab, config['log_path'])
     
     steps_per_epoch = len(dataloader)
     optimizer, scheduler = get_optimizer(
@@ -123,11 +124,16 @@ def train(rank, world_size, config, vocab, dataset, port, test=False):
                              learning_rate = config['learning_rate'],
                              init_lr = config['init_lr'],
                              final_lr = config['final_lr'],
+                             gamma = config['gamma_lr'],
                              epochs = config['epochs'],
-                             warmup = 5,
+                             warmup = config['warmup'],
                              steps_per_epoch = steps_per_epoch,
-                             scheduler = scheduler,
+                             scheduler = config['scheduler'],
                            )
+    
+    if rank==0:
+        for epoch in range(config['resume_epoch']+1):
+            scheduler.step(on='epoch')
 
     for epoch in range(config['resume_epoch']+1, config['epochs']):
         dist.barrier()
@@ -162,11 +168,10 @@ def train(rank, world_size, config, vocab, dataset, port, test=False):
             loss.backward()
             optimizer.step()
             
-            scheduler.step(epoch*steps_per_epoch + it)
-            
             epoch_total_loss += loss.item()
 
             if rank == 0:
+                scheduler.step(on='step', step = epoch*steps_per_epoch + it)
                 # show description
                 show_description(epoch=epoch, 
                                  total_epoch=config['epochs'], 
@@ -178,6 +183,7 @@ def train(rank, world_size, config, vocab, dataset, port, test=False):
                                  _time = train_start)
             
         if rank==0:
+            scheduler.step(on='epoch', loss = loss.item())
             if not save_last or (epoch+1 == config['epochs']):
                 if not os.path.exists(config['save_dir']):
                     os.makedirs(config['save_dir'])

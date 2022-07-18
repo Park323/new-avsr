@@ -27,7 +27,7 @@ class Hybrid_Loss(nn.Module):
         att_loss = self.att(att_out, targets, target_lengths)
         ctc_loss = self.ctc(ctc_out, targets, target_lengths)
         loss = self.ctc_rate * ctc_loss + (1-self.ctc_rate) * att_loss
-        return loss
+        return (loss, ctc_loss.item(), att_loss.item())
         
         
 class CTC_Loss(nn.Module):

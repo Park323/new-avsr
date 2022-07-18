@@ -44,7 +44,7 @@ class HybridModel(EncoderDecoderModel):
         targets = F.one_hot(targets, num_classes = self.vocab_size)
         targets = self.embedder(targets.to(torch.float32))
         outputs = self.decoder(inputs=features, labels=targets, pad_id=self.pad_id)
-        outputs = (F.log_softmax(outputs[0], dim=-1), F.log_softmax(outputs[0], dim=-1))
+        outputs = (F.log_softmax(outputs[0], dim=-1), F.log_softmax(outputs[1], dim=-1)) # (att_output, ctc_output)
         return outputs
 
 
@@ -77,12 +77,9 @@ class CTCModel(EncoderDecoderModel):
                 video_input_lengths,
                 audio_inputs, 
                 audio_input_lengths,
-                targets,
-                target_lengths):
+                *args, **kwargs):
         features = self.encoder(video_inputs, video_input_lengths,
                                 audio_inputs, audio_input_lengths)
-        targets = F.one_hot(targets, num_classes = self.vocab_size)
-        targets = self.embedder(targets.to(torch.float32))
         outputs = self.decoder(features)
         outputs = F.log_softmax(outputs, dim=-1)
         return outputs
